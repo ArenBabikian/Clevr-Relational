@@ -34,8 +34,14 @@ def predict_pair_based(opt, model, dataloader, scenes, relation_names, device):
 
 def predict_scene_based(opt, model, dataloader, scenes, relation_names, device):
     for data, sources, targets, labels, image_id, (num_nodes, num_edges), _ in tqdm(dataloader, 'processing objects batches'):
+        ## FOR NOW, only do the second image, which has only 3 objects
+        if image_id[0] != 1:
+            continue
         num_nodes = num_nodes.item()
         num_edges = num_edges.item()
+        print(".<BEGIN>")
+        # print(num_nodes)
+        # print(num_edges)
 
         data = data[:num_nodes].squeeze(dim=0).to(device)
         sources = sources[:, :num_edges].squeeze(dim=0).to(device).long()
@@ -96,19 +102,23 @@ def predict_scene_adj_based(opt, model, dataloader, scenes, relation_names, rela
 def main(opt):
     relation_map = None # {'left': 'right', 'front': 'behind'}
 
+    #1 creates the model (search based)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = SceneBasedRelNetModule.load_from_checkpoint(opt.model_path, args=opt) if opt.model_type == 'scene_based' \
         else RelNetModule.load_from_checkpoint(opt.model_path, args=opt)
 
+    #2 handles the input h5 file
     dataloader = get_test_dataloader(opt)
 
+    #3 handle detected objects (input)
     with open(opt.scenes_path, 'r') as f:
         result = json.load(f)
 
+    #4 set up the output json format
     scenes = result['scenes']
     relation_names = opt.label_names
 
-    for scene in scenes:
+    for scene in scenes[:len(dataloader.dataset)]:
         if 'relationships' not in scene:
             scene['relationships'] = {}
 
@@ -121,6 +131,7 @@ def main(opt):
 
     model.to(device)
 
+    #5 make prediction by calling the smallNN
     if opt.model_type == 'scene_based':
         if relation_map is None:
             predict_scene_based(opt, model, dataloader, scenes, relation_names, device)
