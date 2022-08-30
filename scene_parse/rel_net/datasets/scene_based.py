@@ -74,7 +74,6 @@ class SceneBasedRelationDataset(Dataset):
             edges[index][2] = [1 - label for label in edges[index][2]]
 
     def __len__(self):
-        return 2 # Hard-coded
         return len(self.dataset)
 
     def load_h5(self):

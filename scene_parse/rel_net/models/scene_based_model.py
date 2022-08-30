@@ -1,4 +1,5 @@
 import math
+from cv2 import mean
 
 import numpy as np
 import torch
@@ -118,9 +119,7 @@ class _RelNet(nn.Module):
         # self.rnn = nn.Sequential(nn.Dropout(dropout_p), nn.RNN(num_features, 128, batch_first=False))
         # self.output = nn.Sequential(nn.Dropout(dropout_p), nn.Linear(128, num_rels),
         #                             nn.Sigmoid())
-        output_layer = [nn.Dropout(dropout_p), nn.Linear(2 * num_features, 256), nn.Linear(256, num_rels)]
-        if use_sigmoid:
-            output_layer.append(nn.Sigmoid())
+        output_layer = [nn.Dropout(dropout_p), nn.Linear(2 * num_features, 256), nn.Linear(256, num_rels), nn.Sigmoid()]
         self.output = nn.Sequential(*output_layer)
 
         # PART 1: (indiv objects)
@@ -128,9 +127,12 @@ class _RelNet(nn.Module):
         # output = 512-dim vector for each object
 
         # PART 2: (object pairs)
-        # input = 2 512-dim vector
-        # intermediate  = 1024-dim vetor becomes a 256-dim vector
-        # output = what is the relation between the 2? (i.e. left, right, behind, in front)
+        # INPUT-relations : 1024-dim vector (2*512-dim vectors) #shape=56*1024
+        # NN-Dropout : 1024->1024 #shape=56*1024
+        # NN-Linear : 1024->256 #shape=56*256
+        # NN-Liner : 256 -> 4 #shape=56*4
+        # OUTPUT : 4 neruons. what is the relation between the 2? (i.e. left, right, behind, in front)
+        # output_technical = relation vec, 56*4 (each possible relationshiop is given a probability of being an instance of each edge type)
 
     def _feature_extractor(self, x):
         x = self.feature_extractor(x)
@@ -148,80 +150,22 @@ class _RelNet(nn.Module):
         features = self._feature_extractor(objs)
 
         # print('features')
-        # print(features.shape) #12*512
+        # print(features.shape) #12*512. The 12 here is weird because we only have 8 objects...
         # print(features[sources].shape) #56*512
         # print(features[targets].shape) #56*512
 
         relations = torch.cat([features[sources], features[targets]], dim=1)
-        # print(relations.shape) #56*1024
 
-        ### CHECKING HOW MANY NEURONS ARE ACTIVATED BY EACH ACTOR
-        
-        #get num actors
-        num_objs = (1+math.sqrt(1+4*len(sources)))/2
-        num_objs = int(num_objs) if num_objs.is_integer() else exit(1)
+        #Save neuron values for all layers
+        all_neuron_values = []
+        current_input = relations
+        for layer in self.output:
+            layer_neuron_values = layer(current_input)
+            # SAVE  neuron_values
+            all_neuron_values.append(layer_neuron_values)
+            current_input = layer_neuron_values
 
-        # check how many are activated
-        thresh_obj = 0
-        for i in range(num_objs):
-            obj = features[i]
-            num_active = len([j for j in obj if j > thresh_obj])
-            print(f'obj{i} = {num_active} /{features.shape[1]}')
+        # NOTE ASSERTION
+        assert torch.all(torch.eq(self.output(relations), all_neuron_values[-1]))
 
-        ### GET INTERMEDIATE (256) neuron values
-        test_sigmoid = False
-        thresh = 0.999 if test_sigmoid else 40
-        print(thresh)
-
-        post_dropout = self.output[0](relations) #Dropout
-        inter_neuron_vals = self.output[1](post_dropout) # 1024 -> 256
-        intermediate_neurons = nn.Sigmoid()(inter_neuron_vals) if test_sigmoid else inter_neuron_vals # (56*1024)
-        
-        clean_arr = np.full(intermediate_neurons.shape, thresh, dtype=int)
-        max_val = 0
-        for i in range(len(intermediate_neurons)):
-            for j in range(len(intermediate_neurons[i])):
-                if intermediate_neurons[i][j] > thresh:
-                    clean_arr[i][j] = intermediate_neurons[i][j]
-                if intermediate_neurons[i][j] > max_val:
-                    max_val = intermediate_neurons[i][j]
-
-        ### SHOW ALL
-        import seaborn as sns; sns.set_theme()
-        import matplotlib.pyplot as plt
-        import os
-        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        ax = sns.heatmap(clean_arr)
-        plt.show()
-
-        # check how many are activated
-        all_active_ids = set()
-        for i in range(len(sources)):
-            if i % num_objs == 0:
-                print()
-            i_src = sources[i]
-            i_tgt = targets[i]
-            # select with or w/o threshold
-            # layer = clean_arr[i]
-            layer = intermediate_neurons[i].tolist()
-
-            #Plot CDF
-            plt.plot(np.sort(layer), np.arange(256), marker='o')
-            plt.show()
-
-            all_active = [j for j in layer if j > thresh]
-
-            # add active ids to set
-            for act_id in range(len(layer)):
-                if layer[act_id] > thresh:
-                    all_active_ids.add(act_id) 
-
-            num_active = len(all_active)
-            print(f'[{num_active}][{len(all_active_ids)}]/256', end=', ')
-
-        print('<END>')
-
-        #CALL the second NN on each oriented pair of nodes
-        # relation vec, 56*4 (each possible relationshiop is given a probability of being an instance of each edge type)
-
-        return self.output(relations)
+        return all_neuron_values

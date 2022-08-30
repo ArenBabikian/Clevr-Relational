@@ -13,7 +13,7 @@ def get_dataset(opt):
 
 def get_test_dataloader(opt):
     if opt.model_type == 'scene_based':
-        dataset = SceneBasedRelationDataset(opt.test_ann_path, opt.test_img_h5, opt.num_rels)
+        dataset = SceneBasedRelationDataset(opt.test_ann_path, opt.test_img_h5, opt.num_rels, opt.img_ids)
     else:
         dataset = RelationDataset(opt.test_ann_path, opt.test_img_h5, opt.num_rels)
 

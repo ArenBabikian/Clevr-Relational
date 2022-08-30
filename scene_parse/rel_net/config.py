@@ -8,7 +8,8 @@ class RelNetConfiguration:
                  label_names: List = None, model_path: str = '', scenes_path: str = '', use_proba: bool = True,
                  output_path: str = '', test_ann_path: str = '', test_img_h5: str = '', dropout_p: float = 0,
                  model_type: str = 'normal', noise_ratio: float = 0, include_constraint_loss: bool = False,
-                 used_rels: List = None, use_sigmoid: bool = True,):
+                 used_rels: List = None, use_sigmoid: bool = True, use_pretrained: bool = True, img_ids: set = None,
+                 save_neuron_values: bool = False, save_dir_path: str = './neurons'):
         self.run_dir = run_dir
         self.dev = dev
         self.max_epochs = max_epochs
@@ -37,3 +38,9 @@ class RelNetConfiguration:
         self.output_path = output_path
         self.test_ann_path = test_ann_path
         self.test_img_h5 = test_img_h5
+
+        # additional configs
+        self.use_pretrained = use_pretrained
+        self.img_ids = img_ids
+        self.save_neuron_values = save_neuron_values
+        self.save_dir_path = save_dir_path

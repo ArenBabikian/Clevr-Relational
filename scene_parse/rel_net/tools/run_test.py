@@ -34,14 +34,8 @@ def predict_pair_based(opt, model, dataloader, scenes, relation_names, device):
 
 def predict_scene_based(opt, model, dataloader, scenes, relation_names, device):
     for data, sources, targets, labels, image_id, (num_nodes, num_edges), _ in tqdm(dataloader, 'processing objects batches'):
-        ## FOR NOW, only do the second image, which has only 3 objects
-        if image_id[0] != 1:
-            continue
         num_nodes = num_nodes.item()
         num_edges = num_edges.item()
-        print(".<BEGIN>")
-        # print(num_nodes)
-        # print(num_edges)
 
         data = data[:num_nodes].squeeze(dim=0).to(device)
         sources = sources[:, :num_edges].squeeze(dim=0).to(device).long()
@@ -49,8 +43,32 @@ def predict_scene_based(opt, model, dataloader, scenes, relation_names, device):
 
         img_id = image_id.item()
 
-        preds = model.forward(data, sources, targets)
+        # Run the NN
+        all_neuron_values = model.forward(data, sources, targets)
 
+        # Find [src,tgt] pairs, also referred to as indices
+        src_tgt_pairs = [[sources.tolist()[j], targets.tolist()[j]] for j in range(len(sources))]
+        
+        # NOTE ASSERTION
+        for layer in all_neuron_values:
+            assert len(layer) == len(src_tgt_pairs)
+        
+        # SAVE the neuron values to a bin file
+        if opt.save_neuron_values:
+            # Save as binary
+            neuron_data = {"indices":src_tgt_pairs, "layers":all_neuron_values}
+            torch.save(neuron_data, f'{opt.save_dir_path}/{img_id}.pt') # save as binary
+            # Save as text
+            neuron_data_txt = {"indices":src_tgt_pairs, "layers":[l.detach().numpy().tolist() for l in all_neuron_values]}
+            with open(f'{opt.save_dir_path}-txt/{img_id}.json', 'w') as fp:
+                json.dump(neuron_data_txt, fp) # save as text
+
+        if opt.use_sigmoid:
+            preds = all_neuron_values[-1]
+        else:
+            preds = all_neuron_values[-2]
+
+        # SAVING THE PEDICTIONS
         if not opt.use_proba:
             preds = torch.round(preds).int().cpu().numpy()
 
@@ -104,8 +122,11 @@ def main(opt):
 
     #1 creates the model (search based)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = SceneBasedRelNetModule.load_from_checkpoint(opt.model_path, args=opt) if opt.model_type == 'scene_based' \
+    if opt.use_pretrained:
+        model = SceneBasedRelNetModule.load_from_checkpoint(opt.model_path, args=opt) if opt.model_type == 'scene_based' \
         else RelNetModule.load_from_checkpoint(opt.model_path, args=opt)
+    else:
+        model = SceneBasedRelNetModule(opt)
 
     #2 handles the input h5 file
     dataloader = get_test_dataloader(opt)
@@ -118,7 +139,7 @@ def main(opt):
     scenes = result['scenes']
     relation_names = opt.label_names
 
-    for scene in scenes[:len(dataloader.dataset)]:
+    for scene in scenes:
         if 'relationships' not in scene:
             scene['relationships'] = {}
 
@@ -134,6 +155,7 @@ def main(opt):
     #5 make prediction by calling the smallNN
     if opt.model_type == 'scene_based':
         if relation_map is None:
+            # NOTE We are in here
             predict_scene_based(opt, model, dataloader, scenes, relation_names, device)
         else:
             predict_scene_adj_based(opt, model, dataloader, scenes, relation_names, relation_map, device)
@@ -141,7 +163,7 @@ def main(opt):
         predict_pair_based(opt, model, dataloader, scenes, relation_names)
 
     with open(opt.output_path, 'w') as f:
-        json.dump({'scenes': scenes}, f)
+        json.dump({'scenes': [scenes[i] if i in opt.img_ids or not opt.img_ids  else {} for i in range(len(scenes))]}, f)
     print('Output scenes saved!')
 
 
