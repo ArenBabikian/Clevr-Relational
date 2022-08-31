@@ -157,7 +157,7 @@ class _RelNet(nn.Module):
         relations = torch.cat([features[sources], features[targets]], dim=1)
 
         #Save neuron values for all layers
-        all_neuron_values = []
+        all_neuron_values = [relations]
         current_input = relations
         for layer in self.output:
             layer_neuron_values = layer(current_input)
