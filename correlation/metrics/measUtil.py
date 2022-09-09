@@ -1,7 +1,7 @@
 
 from matplotlib import pyplot as plt
 
-def plotDataVsModels(series:list, x_values:list=None, show:bool=False, sort_index:int = None):
+def plotDataVsModels(series:list, x_values:list=None, show:bool=False, save_file_path:str = None, sort_index:int = None):
 
     # TODO add label handling
 
@@ -23,7 +23,11 @@ def plotDataVsModels(series:list, x_values:list=None, show:bool=False, sort_inde
     if show:
         plt.show()
 
-def plot2seriesVsModels(s1, s2, show:bool=False, sort_index:int = None):
+    if save_file_path:
+        plt.savefig(save_file_path)
+
+
+def plot2seriesVsModels(s1, s2, show:bool=False, save_file_path:str = None, sort_index:int = None):
     assert len(s1) == len(s2)
 
     xValues = range(len(s1))
@@ -55,3 +59,10 @@ def plot2seriesVsModels(s1, s2, show:bool=False, sort_index:int = None):
 
     if show:
         plt.show()
+
+    if save_file_path:
+        plt.savefig(save_file_path)
+
+# import seaborn as sns; sns.set_theme()
+# ax = sns.heatmap(clean_arr)
+# plt.show()

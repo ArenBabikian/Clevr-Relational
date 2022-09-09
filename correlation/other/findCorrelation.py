@@ -6,11 +6,11 @@ import torch
 from tqdm import tqdm
 
 import yaml
-from correlation.metrics_neuron import NeuronMetrics
+from correlation.metrics.metrics_neuron import NeuronMetrics
 from scene_parse.rel_net.config import RelNetConfiguration
 from scene_parse.rel_net.tools.run_test import main
-from correlation.metrics_graph import GraphMetrics
-from correlation import measUtil
+from correlation.metrics.metrics_graph import GraphMetrics
+from correlation.metrics import measUtil
 from scipy.stats.stats import pearsonr
 
 
@@ -20,9 +20,15 @@ def runCorrelation():
     ########################
     ## DATA GATHERING
     ########################
-    whitelist = range(1000) # None # {0,1} # for a range [0..999]
-    save_path_dir = "./_results/neurons"
-    save_neuron_data = False
+
+    # PARAMETERS
+    whitelist = {3999, 3998} # range(4000)
+    save_path_dir = "./_results_mini_coco_3"
+    # whitelist = range(1000)  # None 
+    # save_path_dir = "./_results"
+    save_neuron_data = True
+    # TODO add config path here?
+    # TODO make all of these as command-line args? OR make a yaml file for this?
 
     ## STEP 1.0.0: SAVE NEURON DATA (if necessary)
     if save_neuron_data:
@@ -36,10 +42,12 @@ def runCorrelation():
         with open(arguments.config_fp) as fp:
             dataMap = yaml.safe_load(fp)
 
-        # additional configs    
+        # additional configs 
+        # TODO create a custom yaml file in the correlation folder and add these there?   
         dataMap['use_pretrained'] = False
         dataMap['img_ids'] = whitelist
         dataMap['save_neuron_values'] = True
+        dataMap['save_feature_values'] = True
         dataMap['save_dir_path'] = save_path_dir
 
         config = RelNetConfiguration(**dataMap)
@@ -49,17 +57,17 @@ def runCorrelation():
     ## STEP 1.0.1: LOAD NEURON DATA for analysis
     all_neuron_data = {}
     if not whitelist :
-        whitelist = range(1000) 
+        whitelist = range(1000) # TODO adjust this for the 4000 models
     for scene_id in tqdm(whitelist):
-        path_to_bin = f'{save_path_dir}/{scene_id}.pt'
+        path_to_bin = f'{save_path_dir}/neurons/{scene_id}.pt'
         neuron_data = torch.load(path_to_bin)
         all_neuron_data[scene_id] = neuron_data
 
     ## STEP 1.1.0: GATHER GRAPH NEIGHBORHOOD DATA (this may require running java code)
     depth = 1
-    parallels = 0
+    parallels = 0 # 2147483647
     
-    neigh_path_dir = "./_results/neighborhoods"
+    neigh_path_dir = f"{save_path_dir}/neighborhoods"
     neigh_path = f'{neigh_path_dir}/neigh{depth}dep{parallels}pars.json'
     with open(neigh_path, 'r') as f:
         all_neigh_data = json.load(f)
@@ -74,12 +82,14 @@ def runCorrelation():
     ## MEASURING METRICS + AGGREGATING + PLOTING
     ########################
 
+    fig_dir_path = f"{save_path_dir}/figures"
+
     ## STEP 2.0: TODO AGGREGATE NEURON DATA
 
     util_neu = NeuronMetrics(all_neuron_data)
     # MIN and MAX
     m10_neu, m11_neu = util_neu.getNeuronValueExtremumForAGivenLayer(1)
-    # measUtil.plotDataVsModels([m10_neu, m11_neu], show=True, sort_index=1)
+    measUtil.plotDataVsModels([m10_neu, m11_neu], show=True, save_file_path=f'{fig_dir_path}/neuron_extremum.pdf' , sort_index=1)
 
     # STEP 2.1: TODO AGREGATE GRAPH DATA
 
@@ -112,9 +122,9 @@ def runCorrelation():
 
     # STEP 4: output some kind of figures
 
-    measUtil.plotDataVsModels([corr_vals], x_values=x_vals, show=True)
-    measUtil.plot2seriesVsModels(m1_nei, allCoverages[22], show=True, sort_index=1)
-    measUtil.plot2seriesVsModels(m1_nei, allCoverages[41], show=True, sort_index=1)
+    measUtil.plotDataVsModels([corr_vals], x_values=x_vals, show=True, save_file_path=f'{fig_dir_path}/corr_vs_thresh.pdf')
+    measUtil.plot2seriesVsModels(m1_nei, allCoverages[22], show=True, save_file_path=f'{fig_dir_path}/best_pos_corr.pdf' , sort_index=1)
+    measUtil.plot2seriesVsModels(m1_nei, allCoverages[41], save_file_path=f'{fig_dir_path}/best_neg_corr.pdf' , show=True, sort_index=1)
 
 
 if __name__ == "__main__":

@@ -168,4 +168,4 @@ class _RelNet(nn.Module):
         # NOTE ASSERTION
         assert torch.all(torch.eq(self.output(relations), all_neuron_values[-1]))
 
-        return all_neuron_values
+        return features, all_neuron_values

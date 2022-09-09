@@ -10,7 +10,11 @@ from scene_parse.rel_net.models import RelNetModule, SceneBasedRelNetModule
 import torch
 from tqdm import tqdm
 import json
+from pathlib import Path
 
+# TODO refactor this to a util file
+def create_folder(path):
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 def predict_pair_based(opt, model, dataloader, scenes, relation_names, device):
     for sources, targets, _, source_ids, target_ids, img_ids, _ in tqdm(dataloader, 'processing objects batches'):
@@ -44,7 +48,20 @@ def predict_scene_based(opt, model, dataloader, scenes, relation_names, device):
         img_id = image_id.item()
 
         # Run the NN
-        all_neuron_values = model.forward(data, sources, targets)
+        features, all_neuron_values = model.forward(data, sources, targets)
+
+        # SAVE the feature representation for each node
+        if opt.save_feature_values:
+            # Save as binary
+            create_folder(f'{opt.save_dir_path}/node2feature')
+            feature_data = features[:num_nodes]
+            torch.save(feature_data, f'{opt.save_dir_path}/node2feature/{img_id}.pt')
+
+            # Save as text
+            create_folder(f'{opt.save_dir_path}/node2feature-txt')
+            feature_data_txt = [l.detach().numpy().tolist() for l in feature_data]
+            with open(f'{opt.save_dir_path}/node2feature-txt/{img_id}.json', 'w') as fp:
+                json.dump(feature_data_txt, fp) # save as text
 
         # Find [src,tgt] pairs, also referred to as indices
         src_tgt_pairs = [[sources.tolist()[j], targets.tolist()[j]] for j in range(len(sources))]
@@ -53,14 +70,17 @@ def predict_scene_based(opt, model, dataloader, scenes, relation_names, device):
         for layer in all_neuron_values:
             assert len(layer) == len(src_tgt_pairs)
         
-        # SAVE the neuron values to a bin file
+        # SAVE the neuron values
         if opt.save_neuron_values:
             # Save as binary
+            create_folder(f'{opt.save_dir_path}/neurons')
             neuron_data = {"indices":src_tgt_pairs, "layers":all_neuron_values}
-            torch.save(neuron_data, f'{opt.save_dir_path}/{img_id}.pt') # save as binary
+            torch.save(neuron_data, f'{opt.save_dir_path}/neurons/{img_id}.pt')
+
             # Save as text
+            create_folder(f'{opt.save_dir_path}/neurons-txt')
             neuron_data_txt = {"indices":src_tgt_pairs, "layers":[l.detach().numpy().tolist() for l in all_neuron_values]}
-            with open(f'{opt.save_dir_path}-txt/{img_id}.json', 'w') as fp:
+            with open(f'{opt.save_dir_path}/neurons-txt/{img_id}.json', 'w') as fp:
                 json.dump(neuron_data_txt, fp) # save as text
 
         if opt.use_sigmoid:
