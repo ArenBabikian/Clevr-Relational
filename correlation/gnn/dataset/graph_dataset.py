@@ -157,7 +157,8 @@ class SceneGraphDataset(InMemoryDataset):
             elif self.data_to_process == "features":
                 feature_path = f'{feature_dir_path}/{ind}.pt'
                 y = torch.load(feature_path)
-            elif self.data_to_process == "random":
+            elif self.data_to_process.startswith("random"):
+                # TODO introduce a deterministic seed, for reproductibility 
                 feature_path = f'{feature_dir_path}/{ind}.pt'
                 features = torch.load(feature_path)
                 lb = torch.min(features)

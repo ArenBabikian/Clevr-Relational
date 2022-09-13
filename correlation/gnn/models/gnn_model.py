@@ -7,12 +7,13 @@ import pytorch_lightning as pl
 from torch_geometric.data import Data, Batch
 from torchmetrics import Accuracy
 
-from correlation.gnn.models.encoders import GATEncoder, RGCNEncoder
+from correlation.gnn.models.encoders import GATEncoder, RGCNEncoder, RGCN2Encoder
 
 
 ENCODER_MAP = {
     'gat': GATEncoder,
-    'rgcn': RGCNEncoder
+    'rgcn': RGCNEncoder,
+    'rgcn2': RGCN2Encoder
 }
 
 class SceneConstructionModule(pl.LightningModule):

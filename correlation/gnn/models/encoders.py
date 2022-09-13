@@ -36,3 +36,25 @@ class RGCNEncoder(nn.Module):
         edge_types = torch.nonzero(edge_features)[:, 1]
 
         return self.encoder(x, edge_index, edge_types)
+
+
+class RGCN2Encoder(nn.Module):
+    # TODO do some kind of generalizaion between this and RCGNEncoder class
+    def __init__(self, args, num_features=512):
+        super(RGCN2Encoder, self).__init__()
+        self.encoder = Sequential('x, edge_index, edge_types', [
+            (RGCNConv(args.input_channels, num_features, args.num_rels), 'x, edge_index, edge_types -> x'),
+            (nn.ReLU(), 'x -> x'),
+            (RGCNConv(num_features, num_features, args.num_rels), 'x, edge_index, edge_types -> x'),
+            (nn.ReLU(), 'x -> x')
+        ])
+
+    def forward(self, x, edge_index, edge_features):
+        # converting edge feature to edge types
+        edge_repeat = edge_features.sum(dim=1).long()
+        # repeat the edge based on the number of labels it has
+        edge_index = edge_index.T.repeat_interleave(edge_repeat, dim=0).T
+        # rever the multi-hot encoding
+        edge_types = torch.nonzero(edge_features)[:, 1]
+
+        return self.encoder(x, edge_index, edge_types)
