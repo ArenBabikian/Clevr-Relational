@@ -7,14 +7,19 @@ output_dims: [8, 3, 2, 2]
 batch_size: 1
 num_workers: 4
 seed: 980413
+input_channels: 15
+encoder: "gat"
+edge_transformer: "types"
+decoder: "random" # IRRELEVANT FOR ME #" "random" # "results/gnn/clevr/decoder.statedict"
+intermediate_gt: "random" # "features" | "neurons" | "random"
 
 #training configuration
 train_size: 3600
 num_rels: 4
 edge_dim: 4
 dropout_p: 0.6
-learning_rate: 0.002
-max_epochs: 1
+learning_rate: 0.005
+max_epochs: 2
 val_every_n_epoch: 1
 precision: 32
 use_sigmoid: True

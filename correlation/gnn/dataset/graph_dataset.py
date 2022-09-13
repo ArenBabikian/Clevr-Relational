@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import torch
 from torch_geometric.data import Data
 from tqdm import tqdm
@@ -7,8 +8,8 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 
 # TODO get rid of these
-neuron_dir_path = "_results_mini_coco/neurons"
-feature_dir_path = "_results_mini_coco/node2feature"
+neuron_dir_path = "_results/4000images/neurons"
+feature_dir_path = "_results/4000images/node2feature"
 layer_id = 2 # 1 for test set
 
 class SceneGraphDatasubset(Dataset):
@@ -25,6 +26,11 @@ class SceneGraphDatasubset(Dataset):
             
         # TODO we might have a bug in the adge_attr list. shape shouldbe [90, 4], and not [180, 4]
 
+        # TODO do something in the InMemoryDataset such that the data is stored in a generic way, 
+        # and the edge and object transformations are happening in here (SceneGraphDatasubset).
+        # Get inspired by Percy's code
+
+
     def __len__(self):
         return len(self.scenes)
 
@@ -32,18 +38,36 @@ class SceneGraphDatasubset(Dataset):
         #TODO improve, send out the Data object directy, then in the rgcn_model.py file, fix the "batch" object.
         # basically the output of this function is the value of batch
         
+        #### TODO MAYBE we don't even need to detach the data objects saved in memory? 
+        # Because here we are basiclly repacking them as tensors.
+        # but this could be an issue if, for example, we wanto pack multiple objects together. In that case, the below code would be required.
+        # I am just not sure about the semantics of __getitem__
+
+
+        # return self.full_dataset.get(index), self.min_id + index
+        
         x, edge_list, edge_attr, y = self.scenes[index]
         return torch.FloatTensor(x), torch.LongTensor(edge_list), torch.FloatTensor(edge_attr), torch.FloatTensor(y), self.min_id + index
+
+        # FIXME
+        # x_t = torch.FloatTensor(x)
+        # edge_list_t = torch.LongTensor(edge_list).T
+        # edge_features_t = torch.FloatTensor(edge_attr)
+        # y_t = torch.FloatTensor(y)
+
+        # # FIXME return Data(x_t, edge_list_t, edge_features_t, y_t), self.min_id + index
+
+        # return x_t, edge_list_t, edge_features_t, y_t, self.min_id + index
 
 
 class SceneGraphDataset(InMemoryDataset):
     # This is a dataset collecting the neuron values OR features data related to ALL images
     # it basically reads and collects from the raw data saved for each model in the `_results` folder
     # the entire dataset is saved as a local .pt file
-    def __init__(self, root, obj_ann_path = None, schema_path = None, data_to_process = "features"):
+    def __init__(self, root, obj_ann_path = None, schema_path = None, data_to_process = None):
         self.scenes_path = obj_ann_path
         self.schema_path = schema_path
-        self.data_to_process = data_to_process # features | neurons
+        self.data_to_process = data_to_process
 
         super().__init__(root)
         self.data, self.slices, = torch.load(self.processed_paths[0]) # this is specific to "InMemoryDatasets"
@@ -133,6 +157,12 @@ class SceneGraphDataset(InMemoryDataset):
             elif self.data_to_process == "features":
                 feature_path = f'{feature_dir_path}/{ind}.pt'
                 y = torch.load(feature_path)
+            elif self.data_to_process == "random":
+                feature_path = f'{feature_dir_path}/{ind}.pt'
+                features = torch.load(feature_path)
+                lb = torch.min(features)
+                ub = torch.max(features)
+                y = (ub-lb) * torch.rand(np.shape(features)) + lb
             else:
                 exit(1)
 

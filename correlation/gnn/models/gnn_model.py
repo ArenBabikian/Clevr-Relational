@@ -7,14 +7,24 @@ import pytorch_lightning as pl
 from torch_geometric.data import Data, Batch
 from torchmetrics import Accuracy
 
+from correlation.gnn.models.encoders import GATEncoder, RGCNEncoder
+
+
+ENCODER_MAP = {
+    'gat': GATEncoder,
+    'rgcn': RGCNEncoder
+}
+
 class SceneConstructionModule(pl.LightningModule):
     def __init__(self, args):
         
         super().__init__()
         self.save_hyperparameters(args.__dict__)
         self.criterion = torch.nn.MSELoss() # because we are comparing float vectors
-        self.net = SceneConstructionModel(self.hparams.num_rels, self.hparams.dropout_p, self.hparams.use_sigmoid,
-                                          self.hparams.edge_dim)
+                                          
+        encoder = ENCODER_MAP[self.hparams.encoder](self.hparams)
+        self.net = SceneConstructionModel(encoder, self.hparams.dropout_p, self. hparams.num_rels,
+                                          self.hparams.use_sigmoid, self.hparams.decoder)
         self.accuracy = Accuracy() # TODO we probably want to change this to a more relevant metric for evaluation
 
     def forward(self, batch):
@@ -49,7 +59,7 @@ class SceneConstructionModule(pl.LightningModule):
 
     def test_step(self, batch, batch_nb):
         loss, accuracy = self.get_metrics(batch)
-        self.log('loss/val', loss)
+        self.log('loss/test', loss)
         self.log('acc/test', accuracy)
         return accuracy
 
@@ -60,20 +70,11 @@ class SceneConstructionModule(pl.LightningModule):
         return [optimizer], [scheduler]
 
 class SceneConstructionModel(nn.Module):
-    def __init__(self, num_rels, dropout_p, use_sigmoid, edge_dim, num_features=512):
+    
+    def __init__(self, encoder, dropout_p, num_rels, use_sigmoid, decoder, num_features=512):
+    # def __init__(self, num_rels, dropout_p, use_sigmoid, edge_dim, num_features=512):
         super(SceneConstructionModel, self).__init__()
-        self.encoder = Sequential('x, edge_index, edge_features', [
-            (GATConv(-1, int(num_features/4), 4, edge_dim=edge_dim), 'x, edge_index, edge_features -> x'),
-            (nn.ELU(), 'x -> x'),
-            (GATConv(-1, int(num_features/4), 4, edge_dim=edge_dim), 'x, edge_index, edge_features -> x'),
-            (nn.ELU(), 'x -> x')])
-
-        # TODO add the second encoder using RGCNConv
-        # self.encoder = Sequential('x, edge_index, edge_features', [
-        #     (RGCNConv(-1, num_features, num_rels), 'x, edge_index, edge_features -> x'),
-        #     (nn.ELU(), 'x -> x'),
-        #     (RGCNConv(-1, num_features, num_rels), 'x, edge_index, edge_features -> x'),
-        #     (nn.ELU(), 'x -> x')])
+        self.encoder = encoder
 
         # Original Output layer.
         # NOT used currently for Aren's work
