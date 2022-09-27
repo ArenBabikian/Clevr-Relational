@@ -31,13 +31,8 @@ class SceneConstructionModule(pl.LightningModule):
     def forward(self, batch):
         return self.net(batch.x, batch.edge_index, batch.edge_attr)
 
-    def get_metrics(self, batch):
-        x, edge_index, edge_attr, y, scene_ids = batch
-        # only support single ids for now
-        assert len(scene_ids) == 1
-        data = Data(x[0], edge_index[0], edge_attr[0], y[0])
-        batch_graph = Batch.from_data_list([data])
-
+    def get_metrics(self, batch):        
+        batch_graph, scene_ids = batch
         reconstruction = self.forward(batch_graph)
         loss = self.criterion(reconstruction, batch_graph.y)
         # TODO IMPROVE THIS ACCURACY MEASUREMENT

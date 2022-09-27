@@ -47,18 +47,11 @@ class SceneGraphDatasubset(Dataset):
         # return self.full_dataset.get(index), self.min_id + index
         
         x, edge_list, edge_attr, y = self.scenes[index]
-        return torch.FloatTensor(x), torch.LongTensor(edge_list), torch.FloatTensor(edge_attr), torch.FloatTensor(y), self.min_id + index
-
-        # FIXME
-        # x_t = torch.FloatTensor(x)
-        # edge_list_t = torch.LongTensor(edge_list).T
-        # edge_features_t = torch.FloatTensor(edge_attr)
-        # y_t = torch.FloatTensor(y)
-
-        # # FIXME return Data(x_t, edge_list_t, edge_features_t, y_t), self.min_id + index
-
-        # return x_t, edge_list_t, edge_features_t, y_t, self.min_id + index
-
+        x_t = torch.FloatTensor(x)
+        edge_list_t = torch.LongTensor(edge_list)
+        edge_features_t = torch.FloatTensor(edge_attr)
+        y_t = torch.FloatTensor(y)
+        return Data(x_t, edge_list_t, edge_features_t, y_t), self.min_id + index
 
 class SceneGraphDataset(InMemoryDataset):
     # This is a dataset collecting the neuron values OR features data related to ALL images
@@ -165,6 +158,7 @@ class SceneGraphDataset(InMemoryDataset):
                 ub = torch.max(features)
                 y = (ub-lb) * torch.rand(np.shape(features)) + lb
             else:
+                print(" Data-to-process is not specified...")
                 exit(1)
 
             #CREATE torch_geometric.Data.Data OBJECT TO SAVE

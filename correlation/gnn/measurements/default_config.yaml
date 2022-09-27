@@ -4,7 +4,7 @@ obj_ann_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/CLEVR_mini_coco_an
 schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
 attr_names: ["color", "shape", "material", "size"]
 output_dims: [8, 3, 2, 2]
-batch_size: 1
+batch_size: 16
 num_workers: 4
 seed: 980413
 edge_transformer: "types"
@@ -12,6 +12,8 @@ decoder: "random" #" "random" # "results/gnn/clevr/decoder.statedict"
 
 # relevant stuff
 input_channels: 15
+# encoder defined through cmd-line args
+# intermediate_gt defined through cmd-line args
 
 #training configuration
 train_size: 3600

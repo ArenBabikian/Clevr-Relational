@@ -28,7 +28,7 @@ class SceneGraphDatasetModule(pl.LightningDataModule):
             batch_size=self.args.batch_size,
             num_workers=self.args.num_workers,
             shuffle=True,
-            # collate_fn=graph_collate,
+            collate_fn=graph_collate,
             pin_memory=True
         )
         return dataloader
@@ -44,7 +44,7 @@ class SceneGraphDatasetModule(pl.LightningDataModule):
             batch_size=self.args.batch_size,
             num_workers=self.args.num_workers,
             shuffle=False,
-            # collate_fn=graph_collate,
+            collate_fn=graph_collate,
             pin_memory=True
         )
         return dataloader
@@ -57,7 +57,7 @@ class SceneGraphDatasetModule(pl.LightningDataModule):
             batch_size=self.args.batch_size,
             num_workers=self.args.num_workers,
             shuffle=False,
-            # collate_fn=graph_collate,
+            collate_fn=graph_collate,
             pin_memory=True
         )
         return dataloader

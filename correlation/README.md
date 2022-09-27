@@ -8,8 +8,7 @@ pip install torch-sparse -f https://data.pyg.org/whl/torch-1.11.0+cpu.html
 pip install torch-geometric
 ```
 ___
-
-### Execution
+### Neuron value Collection
 
 To extract neuron values and features from each image, and to save the raw data:
 ```
@@ -20,13 +19,24 @@ To collect the raw neuron values or feature values within an InMemoryDataSet:
 ```
 python correlation/other/produce_in_memory_dataset.py
 ```
+___
+### Training
 
-To train the NN:
+To train the NN, look at the `correlation/gnn/measurements/runAllMeasurements.py` file.
+
+Otherwise, you can manually train the NN by running:
 ```
 python correlation/gnn/train.py --config_fp=correlation/gnn/config.yaml
 ```
 
+___
+### TensorBoard
+
 To run the TensorBoard
 ```
 python -m tensorboard.main --logdir=correlation/gnn/_output/logs/default/version_<#>
+```
+To run the TensorBoard on the current results for feature learning
+```
+python -m tensorboard.main --logdir=correlation/gnn/measurements/_out/_official
 ```
