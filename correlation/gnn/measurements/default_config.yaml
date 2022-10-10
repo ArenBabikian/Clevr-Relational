@@ -1,6 +1,5 @@
 run_dir: "./correlation/gnn/measurements/_out"
 resume_from_checkpoint: null
-obj_ann_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/CLEVR_mini_coco_anns.json"
 schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
 attr_names: ["color", "shape", "material", "size"]
 output_dims: [8, 3, 2, 2]
@@ -12,11 +11,14 @@ decoder: "random" #" "random" # "results/gnn/clevr/decoder.statedict"
 
 # relevant stuff
 input_channels: 15
+dataset_dir: "_datasets"
 # encoder defined through cmd-line args
+# dataset_name defined through cmd-line args
+# obj_ann_path defined through cmd-line args
 # intermediate_gt defined through cmd-line args
+# train_size defined through cmd-line args
 
 #training configuration
-train_size: 3600
 num_rels: 4
 edge_dim: 4
 dropout_p: 0.6

@@ -6,10 +6,13 @@ from tqdm import tqdm
 from torch_geometric.data import InMemoryDataset
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
+import h5py
+import random
 
 # TODO get rid of these
 neuron_dir_path = "_results/4000images/neurons"
 feature_dir_path = "_results/4000images/node2feature"
+iepvqa_h5_path = "_data/iepvqa/val_features_0_3000.h5"
 layer_id = 2 # 1 for test set
 
 class SceneGraphDatasubset(Dataset):
@@ -54,16 +57,18 @@ class SceneGraphDatasubset(Dataset):
         return Data(x_t, edge_list_t, edge_features_t, y_t), self.min_id + index
 
 class SceneGraphDataset(InMemoryDataset):
+    # TODO Update for IEPVQA
     # This is a dataset collecting the neuron values OR features data related to ALL images
     # it basically reads and collects from the raw data saved for each model in the `_results` folder
     # the entire dataset is saved as a local .pt file
-    def __init__(self, root, obj_ann_path = None, schema_path = None, data_to_process = None):
-        self.scenes_path = obj_ann_path
-        self.schema_path = schema_path
-        self.data_to_process = data_to_process
+    def __init__(self, args):
+        self.scenes_path = args.obj_ann_path
+        self.schema_path = args.schema_path
+        self.data_to_process = args.intermediate_gt
+        self.dataset_name = args.dataset_name
 
-        super().__init__(root)
-        self.data, self.slices, = torch.load(self.processed_paths[0]) # this is specific to "InMemoryDatasets"
+        super().__init__(f'{args.dataset_dir}/{self.dataset_name}')
+        self.data, self.slices, = torch.load(self.processed_paths[0]) # this is specific to "InMemoryDatasets"        
 
     def get_reverse_attr_map(self, attribute_map):
         attr_values = [v for values in attribute_map.values() for v in values]
@@ -92,6 +97,12 @@ class SceneGraphDataset(InMemoryDataset):
             scenes = json.load(f)['scenes']
 
         # ITERATE THROUGH THE SCENES
+
+        # Create random ordering. Currently only working for IEP:
+        # TODO introduce a deterministic seed, for reproductibility 
+        random_sequence = list(range(len(scene)))
+        random.shuffle(random_sequence)
+                    
         for scene in tqdm(scenes):
             ind = scene['image_index']
             objects = scene['objects']
@@ -143,22 +154,103 @@ class SceneGraphDataset(InMemoryDataset):
             edge_attr = torch.tensor(edge_attr_list, dtype=torch.float)
 
             # GET EXPECTED OUTCOME (feature or neuron values)
-            if self.data_to_process == "relations":
-                neuron_path = f'{neuron_dir_path}/{ind}.pt'
-                neuron_data = torch.load(neuron_path)
-                y = neuron_data['layers'][layer_id]
-            elif self.data_to_process == "features":
-                feature_path = f'{feature_dir_path}/{ind}.pt'
-                y = torch.load(feature_path)
-            elif self.data_to_process.startswith("random"):
-                # TODO introduce a deterministic seed, for reproductibility 
-                feature_path = f'{feature_dir_path}/{ind}.pt'
-                features = torch.load(feature_path)
-                lb = torch.min(features)
-                ub = torch.max(features)
-                y = (ub-lb) * torch.rand(np.shape(features)) + lb
+            
+            if self.dataset_name == "SCENES":
+                if self.data_to_process == "relations":
+                    neuron_path = f'{neuron_dir_path}/{ind}.pt'
+                    neuron_data = torch.load(neuron_path)
+                    y = neuron_data['layers'][layer_id]
+                elif self.data_to_process == "features":
+                    feature_path = f'{feature_dir_path}/{ind}.pt'
+                    y = torch.load(feature_path)
+                elif self.data_to_process.startswith("random"):
+                    # TODO introduce a deterministic seed, for reproductibility 
+                    feature_path = f'{feature_dir_path}/{ind}.pt'
+                    features = torch.load(feature_path)
+                    lb = torch.min(features)
+                    ub = torch.max(features)
+                    y = (ub-lb) * torch.rand(np.shape(features)) + lb
+                else:
+                    print(" Data-to-process is not specified...")
+                    exit(1)
+            elif self.dataset_name == 'IEPVQA':
+                if self.data_to_process == "features":
+                    with h5py.File(iepvqa_h5_path, 'r') as f :
+                        y = torch.FloatTensor(f['features'][ind])
+                        y = y.unsqueeze(0)        
+                # TODO adjust below
+                # elif self.data_to_process.startswith("randommore"):
+                #     with h5py.File(iepvqa_h5_path, 'r') as f :
+                #         # TODO introduce a deterministic seed, for reproductibility 
+                #         real_feat = f['features'][ind]
+                #         real_shape = real_feat.shape # 1024-14-14
+                #         # print(real_shape)
+                #         all_feats = f['features'][self.min_id:self.max_id]
+                #         all_shape = all_feats.shape # 3000-1024-14-14
+                #         # print(all_shape)
+                #         real_count = real_feat.size
+                #         # print(real_count)
+                #         y = torch.empty(real_shape)
+
+                #         # # Number of dimensions hard-coded
+                #         # for i in range(real_shape[0]):
+                #         #     for j in range(real_shape[1]):
+                #         #         for k in range(real_shape[2]):
+                #         #             # value = all_feats
+                #         #             # for s in all_shape:
+                #         #             rand_i = random.randint(0, all_shape[0]-1)
+                #         #             rand_j = random.randint(0, all_shape[1]-1)
+                #         #             rand_k = random.randint(0, all_shape[2]-1)
+                #         #             rand_l = random.randint(0, all_shape[3]-1)
+                #         #                 # print(value.shape)
+                #         #                 # value = value[rand_i]
+                #         #             # y[i] = value.item()
+                #         #             y[i][j][k] = all_feats[rand_i][rand_j][rand_k][rand_l].item()
+                        
+                #         # Number of dimensions hard-coded
+                #         for i in range(real_shape[0]):
+                #             # value = all_feats
+                #             # for s in all_shape:
+                #             rand_i = random.randint(0, all_shape[0]-1)
+                #             rand_j = random.randint(0, all_shape[1]-1)
+                #                 # print(value.shape)
+                #                 # value = value[rand_i]
+                #             # y[i] = value.item()
+                #             y[i] = torch.from_numpy(all_feats[rand_i][rand_j])
+
+
+                #         # y = morerandom_sequence[start_id:start_id+real_numel]
+                #         # torch.reshape(y, real_shape)
+                #         # y.reshape(real_size)
+                #         y = y.unsqueeze(0)
+                #         # start_id = start_id + real_numel
+                #         # print(y.size())
+                #         # exit()
+                elif self.data_to_process.startswith("random"):
+                    real_feat = torch.FloatTensor(f['features'][ind])
+                    with h5py.File(iepvqa_h5_path, 'r') as f :
+                        real_feat = torch.FloatTensor(f['features'][ind])
+                        y = torch.FloatTensor(f['features'][random_sequence[ind]])
+                        assert y.size() == real_feat.size()
+                        y = y.unsqueeze(0) 
+                    # with h5py.File(iepvqa_h5_path, 'r') as f :
+                    #     # TODO introduce a deterministic seed, for reproductibility 
+                    #     real_feat = torch.FloatTensor(f['features'][ind])
+                    #     real_size = real_feat.size()
+                    #     real_numel = torch.numel(real_feat)
+                    #     print(real_numel)
+                    #     y = morerandom_sequence[start_id:start_id+real_numel]
+                    #     print(len(y))
+                    #     y.reshape(real_size)
+                    #     y = y.unsqueeze(0)
+                    #     start_id = start_id + real_numel
+                    #     print(y.size())
+                    #     exit()
+                else:
+                    print(" Data-to-process is not specified...")
+                    exit(1)
             else:
-                print(" Data-to-process is not specified...")
+                print("Dataset root directory not")
                 exit(1)
 
             #CREATE torch_geometric.Data.Data OBJECT TO SAVE

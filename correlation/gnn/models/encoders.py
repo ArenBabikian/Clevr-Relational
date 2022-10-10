@@ -1,5 +1,5 @@
 import torch
-from torch_geometric.nn import Sequential
+from torch_geometric.nn import Sequential, Linear
 from torch_geometric.nn.conv import GATConv, RGCNConv
 import torch.nn as nn
 
@@ -12,6 +12,19 @@ class GATEncoder(nn.Module):
             (nn.ELU(), 'x -> x'),
             (GATConv(-1, 128, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
             (nn.ELU(), 'x -> x')])
+
+    def forward(self, x, edge_index, edge_features):
+        return self.encoder(x, edge_index, edge_features)
+
+class GATIEPEncoder(nn.Module):
+    def __init__(self, args):
+        super(GATIEPEncoder, self).__init__()
+        self.encoder = Sequential('x, edge_index, edge_features', [
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            Linear(1024, 200704)])
 
     def forward(self, x, edge_index, edge_features):
         return self.encoder(x, edge_index, edge_features)
