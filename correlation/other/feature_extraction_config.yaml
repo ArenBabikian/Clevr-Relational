@@ -1,0 +1,26 @@
+
+model_paths: 
+  # features : "correlation/gnn/measurements/_out/gat_real_e9_b16.ckpt"
+  random1 : "correlation/gnn/measurements/_out/gat_random1_b16.ckpt"
+  randommore1 : "correlation/gnn/measurements/_out/gat_randommore1_e0_b16.ckpt"
+
+encoder : "gatiep"
+edge_dim: 4
+dropout_p: 0.6
+num_rels: 4
+use_sigmoid: True
+decoder: "random"
+learning_rate: 0.005
+max_epochs: 10
+
+obj_ann_path : "C:/git/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
+schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
+intermediate_gt : None
+dataset_dir: "_datasets"
+dataset_name : "IEPVQA"
+min_id : 0
+max_id : 3000
+
+train_size : 3000
+batch_size: 16
+num_workers: 4
