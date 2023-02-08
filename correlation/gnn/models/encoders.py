@@ -17,6 +17,7 @@ class GATEncoder(nn.Module):
         return self.encoder(x, edge_index, edge_features)
 
 class GATIEPEncoder(nn.Module):
+    # Learns IEP features (size 200704)
     def __init__(self, args):
         super(GATIEPEncoder, self).__init__()
         self.encoder = Sequential('x, edge_index, edge_features', [

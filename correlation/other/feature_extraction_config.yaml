@@ -1,8 +1,11 @@
 
 model_paths: 
   # features : "correlation/gnn/measurements/_out/gat_real_e9_b16.ckpt"
-  random1 : "correlation/gnn/measurements/_out/gat_random1_b16.ckpt"
-  randommore1 : "correlation/gnn/measurements/_out/gat_randommore1_e0_b16.ckpt"
+  # random1 : "correlation/gnn/measurements/_out/gat_random1_b16.ckpt"
+  # randommore1 : "correlation/gnn/measurements/_out/gat_randommore1_e0_b16.ckpt"
+  # randomwithreplacement1 : "correlation/gnn/measurements/_out/gat-randomwithreplacement1_e8_b16.ckpt"
+  # features_ansmse : "correlation/gnn/measurements/_out/gat_ansmse_real_e9_b16.ckpt"
+  features_ansce : "correlation/gnn/measurements/_out/gat_ansce_real_e0_b16.ckpt"
 
 encoder : "gatiep"
 edge_dim: 4
@@ -15,12 +18,14 @@ max_epochs: 10
 
 obj_ann_path : "C:/git/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
 schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
-intermediate_gt : None
+intermediate_gt : "scores-features"
 dataset_dir: "_datasets"
-dataset_name : "IEPVQA"
+dataset_name : "IEPVQA-QA"
 min_id : 0
-max_id : 3000
+max_id : 300
 
-train_size : 3000
+train_size : 300
 batch_size: 16
 num_workers: 4
+
+iep_answer_details : ["9k", 0, 300, 1]

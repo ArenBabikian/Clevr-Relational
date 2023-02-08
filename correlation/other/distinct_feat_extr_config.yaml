@@ -1,0 +1,37 @@
+
+model_paths: 
+  # GatAllClevrReal : "D:/Documents/Education/Datasets/pretrained-models/gat_real_e9_b16.ckpt"
+  # GatAllClevrRand1 : "D:/Documents/Education/Datasets/pretrained-models/gat_random1_b16.ckpt"
+  # GatAllClevrRandWRep1 : "D:/Documents/Education/Datasets/pretrained-models/gat-randomwithreplacement1_e8_b16.ckpt"
+  GatDisClevrReal : "D:/Documents/Education/Datasets/pretrained-models/gat_dis_real_e9_b16.ckpt" # TODO
+  GatDisClevrRand1 : "D:/Documents/Education/Datasets/pretrained-models/gat_dis_random1_e9_b16.ckpt" # TODO
+  GatDisClevrRandWRep1 : "D:/Documents/Education/Datasets/pretrained-models/gat_dis_randomwithreplacement1_e6_b16.ckpt" # TODO
+  # randommore1 : "correlation/gnn/measurements/_out/gat_randommore1_e0_b16.ckpt"
+  # features_ansmse : "correlation/gnn/measurements/_out/gat_ansmse_real_e9_b16.ckpt"
+  # features_ansce : "correlation/gnn/measurements/_out/gat_ansce_real_e0_b16.ckpt"
+
+encoder : "gatiep"
+edge_dim: 4
+dropout_p: 0.6
+num_rels: 4
+use_sigmoid: True
+decoder: "random"
+learning_rate: 0.005
+max_epochs: 10
+
+obj_ann_path : "C:/git/clevr-dataset-gen/clevr-distinct/scenes.json"
+schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
+intermediate_gt : "features"
+dataset_dir: "_datasets"
+dataset_name : "IEPVQA-DIS"
+dataset_h5_path : "C:/git/clevr-iep/data/distinct/k-resnet101_0_1000.h5"
+min_id : 0
+max_id : 1000
+
+train_size : 1000
+batch_size: 16
+num_workers: 4
+
+save_dir : "C:/git/clevr-iep/data/distinct"
+
+iep_answer_details : [None, 0, 1000, None]

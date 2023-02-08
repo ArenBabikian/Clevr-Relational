@@ -27,7 +27,7 @@ class SceneGraphDatasetModule(pl.LightningDataModule):
         self.id_cutoff = self.id_min + args.train_size
         self.id_max = args.max_id if hasattr(args, "max_id") else None
         assert self.id_min < self.id_cutoff
-        assert self.id_max == None or self.id_cutoff < self.id_max
+        assert self.id_max == None or self.id_cutoff <= self.id_max
 
         self.full_dataset = SceneGraphDataset(args)
 

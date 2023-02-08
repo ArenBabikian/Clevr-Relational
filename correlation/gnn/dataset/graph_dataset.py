@@ -1,3 +1,4 @@
+from distutils.errors import LinkError
 import json
 import numpy as np
 import torch
@@ -8,11 +9,13 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 import h5py
 import random
+from pathlib import Path
 
 # TODO get rid of these
 neuron_dir_path = "_results/4000images/neurons"
 feature_dir_path = "_results/4000images/node2feature"
-iepvqa_h5_path = "_data/iepvqa/val_features_0_3000.h5"
+# TODO make this the dataset_h5_path
+# iepvqa_h5_path = "_data/iepvqa/val_features_0_3000.h5" 
 layer_id = 2 # 1 for test set
 
 class SceneGraphDatasubset(Dataset):
@@ -66,8 +69,19 @@ class SceneGraphDataset(InMemoryDataset):
         self.schema_path = args.schema_path
         self.data_to_process = args.intermediate_gt
         self.dataset_name = args.dataset_name
+        self.dataset_h5_path = args.dataset_h5_path
+        self.iep_a_spec = args.iep_answer_details
 
-        super().__init__(f'{args.dataset_dir}/{self.dataset_name}')
+        assert self.dataset_name != "IEPVQA-QA" or (self.dataset_name == "IEPVQA-QA" and self.iep_a_spec != None )
+
+        if self.dataset_name == "IEPVQA-QA":
+            subfolder_name = f'{self.dataset_name}/{self.iep_a_spec[0]}'
+            self.data_file_path = f'{self.data_to_process}-{self.iep_a_spec[1]}-{self.iep_a_spec[2]}-{self.iep_a_spec[3]}'
+        else:
+            subfolder_name = self.dataset_name
+            self.data_file_path = self.data_to_process
+
+        super().__init__(f'{args.dataset_dir}/{subfolder_name}')
         self.data, self.slices, = torch.load(self.processed_paths[0]) # this is specific to "InMemoryDatasets"        
 
     def get_reverse_attr_map(self, attribute_map):
@@ -76,7 +90,7 @@ class SceneGraphDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return [f'data-{self.data_to_process}.pt']
+        return [f'data-{self.data_file_path}.pt']
 
     def process(self):
 
@@ -96,13 +110,91 @@ class SceneGraphDataset(InMemoryDataset):
         with open(self.scenes_path, 'r') as f:
             scenes = json.load(f)['scenes']
 
-        # ITERATE THROUGH THE SCENES
+        # Currently hard-coded limit of 3000 scenes for IEPVQA
+        # because we don't need all 15000 validation images
+        # REMEMBER that this is for the full dataset.
+        # We can select subset through the cmd-line args when creating
+        # the SceneGraphDataSeubset object
+        if self.dataset_name.startswith('IEPVQA'):
+            if self.iep_a_spec != None:
+                scenes = scenes[self.iep_a_spec[1]:self.iep_a_spec[2]]
+            else:
+                if self.dataset_name == 'IEPVQA':
+                    scenes = scenes[:3000]
+                elif self.dataset_name == 'IEPVQA-DIS':
+                    scenes = scenes[:1000]
+
+        if self.dataset_name == 'IEPVQA-QA':
+            # do some measurements
+            import sys
+            sys.path.append('../clevr-iep')
+            from iep.data import _dataset_to_tensor
+
+            # --------------------------
+            # THESE ARE ALL THE QUESTION
+            path_to_vqa_questions="../clevr-iep/data/questions/val_questions_0_3000.h5"
+            f_q = h5py.File(path_to_vqa_questions, 'r')
+            
+            questions_q = _dataset_to_tensor(f_q['questions'])
+            image_ids_q = _dataset_to_tensor(f_q['image_idxs'])
+            question_ids_q = _dataset_to_tensor(f_q['orig_idxs'])
+
+            # This basically ensures that if we query f_q['image_idxs'] with the content of
+            # f_a['question_id'], we will get a consistent result.
+            for id_of_id, id in enumerate(question_ids_q):
+                assert id_of_id == id
+
+            # ----------------------------------------
+            # THESE ARE ONLY SELECTED ANSWERS (SUBSET)
+            # TODO big assumptions here. regarding path_to_answers
+            # number of images, and question interval should be given as input
+            path_to_vqa_answers=f"../clevr-iep/data/answers/resnet101/{self.iep_a_spec[0]}_{self.iep_a_spec[1]}_{self.iep_a_spec[2]}__{self.iep_a_spec[3]}.h5"
+            # path_to_vqa_answers=f"../clevr-iep/data/answers/resnet101/{self.iep_a_spec}_0_3000__10.h5"
+            f_a = h5py.File(path_to_vqa_answers, 'r')
+
+            scores_a = torch.Tensor(f_a['scores'])
+            question_ids_a = torch.Tensor(f_a['question_ids'])
+            results_a = torch.Tensor(f_a['results'])
+
+            # ---------------------
+            # 3. are sizes fixed? same format? can we concatenate them in y?
+
+            question_length = len(questions_q[0])
+            answer_length = len(scores_a[0][0])
+
+            # ASSUME TODO that answer is shorter than question
+            assert answer_length <= question_length
+            # encoding_length = max(answer_length, question_length)
+            # pad_length = question_length-answer_length
+
+            # --------------------------
+            # 0. see how many questins there are per image? maybe pad with nones?
+            # ASSUME TODO number of questions per image is constant
+            num_questions_per_image = [0] * 3000 # 3000 is the max number of images handled for now
+            for id in question_ids_a:
+                num_questions_per_image[image_ids_q[id.int()]] += 1
+            
+            num_qs_per_image = max(num_questions_per_image)
+            for num_q in num_questions_per_image:
+                assert num_q == num_qs_per_image or num_q == 0
+
+            # -----------------------------
+            # create random sequence, iterate over questions
+            random_sequence = list(range(len(question_ids_a)))
+            
+            f_q.close()
+            f_a.close()
+        else:
+            # -----------------------------
+            # create random sequence, iterate over scenes
+            random_sequence = list(range(len(scenes)))
 
         # Create random ordering. Currently only working for IEP:
-        # TODO introduce a deterministic seed, for reproductibility 
-        random_sequence = list(range(len(scene)))
+        # TODO introduce a deterministic seed, for reproductibility
         random.shuffle(random_sequence)
-                    
+
+
+        # ITERATE THROUGH THE SCENES
         for scene in tqdm(scenes):
             ind = scene['image_index']
             objects = scene['objects']
@@ -156,6 +248,7 @@ class SceneGraphDataset(InMemoryDataset):
             # GET EXPECTED OUTCOME (feature or neuron values)
             
             if self.dataset_name == "SCENES":
+                # get ground truth feature values from feature extractor of scene objects
                 if self.data_to_process == "relations":
                     neuron_path = f'{neuron_dir_path}/{ind}.pt'
                     neuron_data = torch.load(neuron_path)
@@ -164,7 +257,6 @@ class SceneGraphDataset(InMemoryDataset):
                     feature_path = f'{feature_dir_path}/{ind}.pt'
                     y = torch.load(feature_path)
                 elif self.data_to_process.startswith("random"):
-                    # TODO introduce a deterministic seed, for reproductibility 
                     feature_path = f'{feature_dir_path}/{ind}.pt'
                     features = torch.load(feature_path)
                     lb = torch.min(features)
@@ -173,84 +265,117 @@ class SceneGraphDataset(InMemoryDataset):
                 else:
                     print(" Data-to-process is not specified...")
                     exit(1)
-            elif self.dataset_name == 'IEPVQA':
-                if self.data_to_process == "features":
-                    with h5py.File(iepvqa_h5_path, 'r') as f :
+            elif self.dataset_name == 'IEPVQA' or self.dataset_name == "IEPVQA-DIS":
+                # get ground truth features value from the VQA intermediate representation
+                # NOTE: self.dataset_h5_path is derived from clevriep/scripts/0-run-feature-extraction
+                with h5py.File(self.dataset_h5_path, 'r') as f :
+                    if self.data_to_process == "features":
                         y = torch.FloatTensor(f['features'][ind])
-                        y = y.unsqueeze(0)        
-                # TODO adjust below
-                # elif self.data_to_process.startswith("randommore"):
-                #     with h5py.File(iepvqa_h5_path, 'r') as f :
-                #         # TODO introduce a deterministic seed, for reproductibility 
-                #         real_feat = f['features'][ind]
-                #         real_shape = real_feat.shape # 1024-14-14
-                #         # print(real_shape)
-                #         all_feats = f['features'][self.min_id:self.max_id]
-                #         all_shape = all_feats.shape # 3000-1024-14-14
-                #         # print(all_shape)
-                #         real_count = real_feat.size
-                #         # print(real_count)
-                #         y = torch.empty(real_shape)
-
-                #         # # Number of dimensions hard-coded
-                #         # for i in range(real_shape[0]):
-                #         #     for j in range(real_shape[1]):
-                #         #         for k in range(real_shape[2]):
-                #         #             # value = all_feats
-                #         #             # for s in all_shape:
-                #         #             rand_i = random.randint(0, all_shape[0]-1)
-                #         #             rand_j = random.randint(0, all_shape[1]-1)
-                #         #             rand_k = random.randint(0, all_shape[2]-1)
-                #         #             rand_l = random.randint(0, all_shape[3]-1)
-                #         #                 # print(value.shape)
-                #         #                 # value = value[rand_i]
-                #         #             # y[i] = value.item()
-                #         #             y[i][j][k] = all_feats[rand_i][rand_j][rand_k][rand_l].item()
-                        
-                #         # Number of dimensions hard-coded
-                #         for i in range(real_shape[0]):
-                #             # value = all_feats
-                #             # for s in all_shape:
-                #             rand_i = random.randint(0, all_shape[0]-1)
-                #             rand_j = random.randint(0, all_shape[1]-1)
-                #                 # print(value.shape)
-                #                 # value = value[rand_i]
-                #             # y[i] = value.item()
-                #             y[i] = torch.from_numpy(all_feats[rand_i][rand_j])
-
-
-                #         # y = morerandom_sequence[start_id:start_id+real_numel]
-                #         # torch.reshape(y, real_shape)
-                #         # y.reshape(real_size)
-                #         y = y.unsqueeze(0)
-                #         # start_id = start_id + real_numel
-                #         # print(y.size())
-                #         # exit()
-                elif self.data_to_process.startswith("random"):
-                    real_feat = torch.FloatTensor(f['features'][ind])
-                    with h5py.File(iepvqa_h5_path, 'r') as f :
+                        y = y.unsqueeze(0)
+                    elif self.data_to_process.startswith("randomwithreplacement"):
+                        random_ind = random.randint(0, len(scenes)-1)
+                        y = torch.FloatTensor(f['features'][random_ind])
+                        y = y.unsqueeze(0) 
+                    elif self.data_to_process.startswith("random"):
                         real_feat = torch.FloatTensor(f['features'][ind])
                         y = torch.FloatTensor(f['features'][random_sequence[ind]])
                         assert y.size() == real_feat.size()
-                        y = y.unsqueeze(0) 
-                    # with h5py.File(iepvqa_h5_path, 'r') as f :
-                    #     # TODO introduce a deterministic seed, for reproductibility 
-                    #     real_feat = torch.FloatTensor(f['features'][ind])
-                    #     real_size = real_feat.size()
-                    #     real_numel = torch.numel(real_feat)
-                    #     print(real_numel)
-                    #     y = morerandom_sequence[start_id:start_id+real_numel]
-                    #     print(len(y))
-                    #     y.reshape(real_size)
-                    #     y = y.unsqueeze(0)
-                    #     start_id = start_id + real_numel
-                    #     print(y.size())
-                    #     exit()
-                else:
-                    print(" Data-to-process is not specified...")
-                    exit(1)
+                        y = y.unsqueeze(0)
+                    else:
+                        print(" Data-to-process is not specified...")
+                        exit(1)
+                f.close()
+            elif self.dataset_name == 'IEPVQA-QA':
+
+                # --------------------------
+                # THESE ARE ALL THE QUESTION
+                # TODO make this "dataset_h5_path" in yaml
+                f_q = h5py.File(path_to_vqa_questions, 'r')
+                
+                questions_q = _dataset_to_tensor(f_q['questions'])
+                image_ids_q = _dataset_to_tensor(f_q['image_idxs'])
+                question_ids_q = _dataset_to_tensor(f_q['orig_idxs'])
+
+                # ----------------------------------------
+                # THESE ARE ONLY SELECTED ANSWERS (SUBSET)
+                # TODO big assumptions here. regarding path_to_answers
+                # number of images, and question interval should be given as input
+                f_a = h5py.File(path_to_vqa_answers, 'r')
+
+                scores_a = torch.Tensor(f_a['scores'])
+                question_ids_a = torch.Tensor(f_a['question_ids'])
+                results_a = torch.Tensor(f_a['results'])
+
+                # ---------------------
+                # Go through every answer,and only consider the ones related to the the current image
+
+                questions_for_ind_list = []
+                for a_id, q_id_flt in enumerate(question_ids_a):
+                    q_id = q_id_flt.int()
+                    if image_ids_q[q_id] == ind:
+                        # CREATE A COUNTER HERE FOR TESTING
+
+                        # SCORES
+                        if self.data_to_process.startswith("scores-"):
+                            q = questions_q[q_id].to(torch.float) # get QUESTION encoding (transform to floats)
+                            data_spec = self.data_to_process[len("scores-"):]
+                            if data_spec == "features":
+                                a_raw = scores_a[a_id][0] # get ANSWER scores (as float)
+                            elif data_spec.startswith("randomwithreplacement"):
+                                random_ind = random.randint(0, len(question_ids_a)-1)
+                                a_raw = scores_a[random_ind][0] # get ANSWER scores (as float)
+                            elif data_spec.startswith("random"):
+                                a_raw = scores_a[random_sequence[a_id]][0] # get ANSWER scores (as float)
+                            else:
+                                print(" Data-to-process suffix is invalid (should be \"features\" or \"random\" or \"randomWithReplacement\")")
+                                exit(1)
+
+                            a = torch.full(q.size(), float('-inf'))
+                            a[:len(a_raw)] = a_raw # pad ANSWER scores with minus infinities
+
+                        # RESULTS
+                        elif self.data_to_process.startswith("results-"):
+                            q = questions_q[q_id] # get QUESTION encoding (as int)
+                            data_spec = self.data_to_process[len("results-"):]
+                            if data_spec == "features":
+                                a_raw = results_a[a_id] # get ANSWER index
+                            elif data_spec.startswith("randomwithreplacement"):
+                                random_ind = random.randint(0, len(question_ids_a)-1)
+                                a_raw = results_a[random_ind] # get ANSWER index
+                            elif data_spec.startswith("random"):
+                                a_raw = results_a[random_sequence[a_id]] # get ANSWER index
+                            else:
+                                print(" Data-to-process suffix is invalid (should be \"features\" or \"random\" or \"randomWithReplacement\")")
+                                exit(1)
+
+                            a = torch.zeros(q.size())
+                            a[a_raw] = 1 # make ANSWER one-hot
+                        else:
+                            print(" Data-to-process prefix is invalid (should be \"scores-\" or \"results-\")")
+                            exit(1)
+
+                        #create the [2, encoding_length] Tensor
+                        qa = torch.stack((q, a), dim=0)
+                        # print(qa.dtype)
+                        # print(qa)
+                        # print(qa.size())
+                        
+                        # append to a tensor that wiull eventually be of length num_qs_per_image
+                        questions_for_ind_list.append(qa)
+                
+                y = torch.stack(questions_for_ind_list).unsqueeze(0)
+                # Should be [1, num_qs_per_image, 2, question_length]
+
+                # print(qs_for_ind)
+
+                # print(y.size())
+                # print(y.dtype)
+                # # exit()
+                
+                f_q.close()
+                f_a.close()
             else:
-                print("Dataset root directory not")
+                print(f"Dataset root directory not set. {self.dataset_name} is invalid.")
                 exit(1)
 
             #CREATE torch_geometric.Data.Data OBJECT TO SAVE

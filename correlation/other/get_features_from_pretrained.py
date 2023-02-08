@@ -24,10 +24,11 @@ def main(opt):
         # These are defined in _datasets/IEPVQA/processed/data-{something}
         # note that these also contain the gt output y (either random, or the features derived from the valudation images (resnet), saved at _data/iepvqa/val_features_0_3000.h5)
 
-        opt.intermediate_gt = model_name
+        # opt.intermediate_gt = model_name
         dataloader = SceneGraphDatasetModule(opt).train_dataloader()
 
-        dataset_path = f'_data/{model_name}_features_{opt.min_id}_{opt.max_id}.h5'
+        # Add <save_dir : "_data"> to yaml for non DISTINCT
+        dataset_path = f'{opt.save_dir}/k_{model_name}_{opt.min_id}_{opt.max_id}.h5'
         with h5py.File(dataset_path, 'w') as f:
 
             all_features_dataset = f.create_dataset('features', (opt.max_id-opt.min_id, 1024, 14, 14),
@@ -57,7 +58,9 @@ def main(opt):
 
 if __name__ == "__main__":
 
-    with open("correlation/other/feature_extraction_config.yaml") as fp:
+    config_path = "correlation/other/feature_extraction_config.yaml"
+    config_path = "correlation/other/distinct_feat_extr_config.yaml"
+    with open(config_path) as fp:
         dataMap = yaml.safe_load(fp)
 
     config = SceneReconstructionConfig(dataMap)
