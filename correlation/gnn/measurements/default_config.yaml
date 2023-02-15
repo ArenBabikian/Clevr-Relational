@@ -1,6 +1,7 @@
-run_dir: "./correlation/gnn/measurements/_out"
+# run_dir: "./correlation/gnn/measurements/_out"
+run_dir: "./results4"
 resume_from_checkpoint: null
-schema_path: "C:/git/Clevr-Relational/_clevr_data/_clevr_gnn/clevr_attr_map.json"
+schema_path: "/home/arenbabikian/git/Clevr-Relational/_data/clevr_attr_map.json"
 attr_names: ["color", "shape", "material", "size"]
 output_dims: [8, 3, 2, 2]
 batch_size: 16
@@ -11,12 +12,16 @@ decoder: "random" #" "random" # "results/gnn/clevr/decoder.statedict"
 
 # relevant stuff
 input_channels: 15
-dataset_dir: "_datasets"
-# encoder defined through cmd-line args
-# dataset_name defined through cmd-line args
-# obj_ann_path defined through cmd-line args
-# intermediate_gt defined through cmd-line args
-# train_size defined through cmd-line args
+dataset_dir: "_datasets_new"
+# encoder - defined through cmd-line args
+# dataset_name - defined through cmd-line args
+# obj_ann_path - defined through cmd-line args
+# intermediate_gt - defined through cmd-line args
+# train_size - defined through cmd-line args
+dataset_h5_path: null # - defined through cmd-line args
+global_max_id: null # - defined through cmd-line args
+dataset_save_path: null # - defined through cmd-line args
+gpu: 1
 
 #training configuration
 num_rels: 4

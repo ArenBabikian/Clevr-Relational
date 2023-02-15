@@ -3,7 +3,7 @@ data/
 *.so
 *.pt
 *.ckpt
-results/
+results*/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -148,3 +148,4 @@ cython_debug/
 
 _*/
 .vscode/
+.env-rel

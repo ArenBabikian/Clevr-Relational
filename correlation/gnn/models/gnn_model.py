@@ -51,11 +51,11 @@ class SceneConstructionModule(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(args.__dict__)
 
-        if self.hparams.dataset_name == 'IEPVQA-QA':
+        if self.hparams.source_type == 'IEPVQA-QA':
             models_path = "../clevr-iep/models/CLEVR"
             model_name = models[self.hparams.iep_answer_details[0]]
             
-            dtype = torch.FloatTensor
+            dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
             if type(model_name) is tuple:
                 program_generator, _ = utils.load_program_generator(f'{models_path}/{model_name[0]}')
                 execution_engine, _ = utils.load_execution_engine(f'{models_path}/{model_name[1]}', verbose=False)
@@ -92,11 +92,16 @@ class SceneConstructionModule(pl.LightningModule):
     def forward(self, batch):
         return self.net(batch.x, batch.edge_index, batch.edge_attr)
 
-    def get_metrics(self, batch):        
+    def get_metrics(self, batch):
+        if torch.cuda.is_available():
+            t = torch.cuda
+        else:
+            t = torch
+
         batch_graph, num_obj_seq, scene_ids = batch
         reconstruction = self.forward(batch_graph)
 
-        if self.hparams.dataset_name == 'IEPVQA-QA':
+        if self.hparams.source_type == 'IEPVQA-QA':
 
             # HANDLE LEARNED FEATURE VALUES
             assert torch.sum(num_obj_seq) == len(batch_graph.x)
@@ -132,8 +137,8 @@ class SceneConstructionModule(pl.LightningModule):
             for im_i in range(len(batch_graph.y)):
                 for q_id, qa_pair in enumerate(batch_graph.y[im_i]):
                     q = qa_pair[0].to(torch.long)
-                    q = torch.LongTensor(q).view(1, -1)
-                    q = q.type(torch.FloatTensor).long()
+                    q = t.LongTensor(q).view(1, -1)
+                    q = q.type(t.FloatTensor).long()
                     q_var = Variable(q)
                     q_var.requires_grad = False
 
@@ -151,11 +156,6 @@ class SceneConstructionModule(pl.LightningModule):
             
                     # dtype = torch.FloatTensor
                     if type(self.model) is tuple:
-                        # program_generator, _ = utils.load_program_generator(f'{models_path}/{model_name[0]}')
-                        # execution_engine, _ = utils.load_execution_engine(f'{models_path}/{model_name[1]}', verbose=False)
-                        # program_generator.type(dtype)
-                        # execution_engine.type(dtype)
-                        # predicted_programs = []
                         # temperature defaulted to 1.0, argmax defaulted to True
                         
                         program_generator, execution_engine = self.model
@@ -205,7 +205,7 @@ class SceneConstructionModule(pl.LightningModule):
             # acc = self.accuracy(torch.add(preds, -m), torch.add(target, -m))
             acc = self.accuracy(obtained_scores_rs.argmax(dim=1), gt_scores_rs)
 
-        elif self.hparams.dataset_name == 'IEPVQA' or self.hparams.dataset_name == 'IEPVQA-DIS':
+        elif self.hparams.source_type == 'IEPVQA' or self.hparams.source_type == 'IEPVQA-DIS':
             # Average out the reconstruction
             # [batch_size * num_nodes, 200704] -> [batch_size, 200704]
             assert torch.sum(num_obj_seq) == len(batch_graph.x)
@@ -223,7 +223,8 @@ class SceneConstructionModule(pl.LightningModule):
             # [batch_size, 1024, 14, 14] -> [batch_size, 200704]
             loss_gt = torch.flatten(batch_graph.y, start_dim=1)
             # print(batch_graph.y.size())
-            # print(loss_gt)
+            # print(loss_gt.shape)
+            # exit()
             loss = self.criterion(loss_feat, loss_gt)
             acc = 0.5
 

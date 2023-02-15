@@ -17,12 +17,14 @@ def main(args):
     train_data = SceneGraphDatasetModule(args)
     model = SceneConstructionModule(args)
     checkpoint_callback = ModelCheckpoint(monitor="loss/val", dirpath=args.run_dir)
-    logger = pl_loggers.TensorBoardLogger(args.run_dir + "/logs/")
+    # logger = pl_loggers.TensorBoardLogger(args.run_dir + "/logs/", name=f'{args.encoder}/{args.target_type}')
+    logger = pl_loggers.TensorBoardLogger(f'{args.run_dir}/{args.source_type}', name=f'{args.encoder}/{args.target_type}')
+
     
     trainer = Trainer(
         fast_dev_run=args.dev,
         logger=logger,
-        gpus=None,
+        gpus=args.gpu,
         weights_summary=None,
         deterministic=args.seed is not None,
         log_every_n_steps=1,
