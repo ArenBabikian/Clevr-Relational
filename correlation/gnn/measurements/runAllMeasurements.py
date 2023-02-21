@@ -37,20 +37,18 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
         # scenes: 0..15000
         # features: 0:3000
         dataMap['obj_ann_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
-        # dataMap['target_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/val_features_0_3000.h5"
         # below comes from the clevr-iep repo
         dataMap['questions_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/val_questions_0_3000.h5"
         dataMap['answers_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/answers/resnet101/700k_strong_0_3000__1.h5"
         dataMap['vocab_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/val_vocab_0_3000.json"
         dataMap['decoder'] = '700k_strong'
 
-        dataMap['dataset_save_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/saved"
+        dataMap['dataset_save_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/saved_old"
+        dataMap['handle_scores'] = False
         dataMap['clevr_iep_path'] = f'{git_path}/clevr-iep/'
 
         dataMap['global_max_id'] = 3000
 
-
-    # TODO add a IEPVQA-Q-GT   
 
 
     # TODO missing
@@ -90,10 +88,6 @@ if __name__ == '__main__':
     runTraining("gat", "CLEVR-GNN", "features", 0, 3000)
     runTraining("rgcn", "CLEVR-GNN", "features", 0, 3000)
     runTraining("rgcn2", "CLEVR-GNN", "features", 0, 3000)
-
-
-
-
 
     # for e in ['gatiep']:
     #     for d in ['IEPVQA']:

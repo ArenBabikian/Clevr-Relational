@@ -72,7 +72,10 @@ class SceneConstructionModule(pl.LightningModule):
                 model.type(dtype)
                 self.model = model
 
-            self.criterion = torch.nn.BCEWithLogitsLoss()
+            if args.handle_scores:
+                self.criterion = torch.nn.MSELoss()
+            else:
+                self.criterion = torch.nn.BCEWithLogitsLoss()
             self.accuracy = None # manually computed during metrics measurements
                                           
         encoder = ENCODER_MAP[self.hparams.encoder](self.hparams)
@@ -144,15 +147,19 @@ class SceneConstructionModule(pl.LightningModule):
 
             # NOTE THIS CALCULATION OF LOSS AND ACC IS WHAT IS TAKING THE MAJORITY OF TIME
             for im_i, im_batch in enumerate(batch_graph.y):
-                for q_id, qa_pair in enumerate(im_batch):
+                for q_id, qa_triple in enumerate(im_batch):
                     # features
                     cur_feats = graph_feats[im_i].unsqueeze(0)
 
                     # Gt Answer: 
-                    answer_gt_oh = qa_pair[1][:ans_len].float()
+                    answer_gt_oh = qa_triple[1][:ans_len].float()
+                    if self.hparams.handle_scores:
+                        answer_gt_tgt = qa_triple[2][:ans_len].float()
+                    else:
+                        answer_gt_tgt = answer_gt_oh
 
                     # Question
-                    q = qa_pair[0].to(torch.long)
+                    q = qa_triple[0].to(torch.long)
                     q = t.LongTensor(q).view(1, -1)
                     q = q.type(t.FloatTensor).long()
                     q_var = Variable(q)
@@ -171,7 +178,7 @@ class SceneConstructionModule(pl.LightningModule):
                         scores = self.model(q_var, cur_feats)
 
                     # Loss
-                    cur_loss = self.criterion(scores[0], answer_gt_oh)
+                    cur_loss = self.criterion(scores[0], answer_gt_tgt)
                     tot_loss[im_i][q_id] = cur_loss
                     
                     # Learned answer

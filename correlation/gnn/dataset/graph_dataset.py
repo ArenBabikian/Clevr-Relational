@@ -53,7 +53,6 @@ class SceneGraphDatasubset(Dataset):
         x, edge_list, edge_attr, y = self.scenes[index]
         return Data(x, edge_list, edge_attr, y), self.min_id + index
 
-
 class SceneGraphDataset(Dataset):
     # TODO remove daaset_path
     def __init__(self, args, dataset_path):
@@ -227,14 +226,11 @@ class SGDataset(SceneGraphDataset):
 
 class SGQADataset(SceneGraphDataset):
     def __init__(self, args):
-        # assert args.iep_answer_details != None
-        # iep_specs = args.iep_answer_details
-        # self.data_file_path = f'{args.target_type}-{iep_specs[1]}-{iep_specs[2]}-{iep_specs[3]}'
-        # dataset_path = f'{args.dataset_dir}/{args.dataset_name}/{iep_specs[0]}'
         dataset_path = '' # TEMP
         self.global_max_id = args.global_max_id
         
         self.decoder = args.decoder
+        self.handle_scores = args.handle_scores
 
         # (1) Get all Questions
         with h5py.File(args.questions_path, 'r') as f_q:
@@ -249,7 +245,7 @@ class SGQADataset(SceneGraphDataset):
         
         # (2) Get all Answers
         with h5py.File(args.answers_path, 'r') as f_a:
-            # 'scores' ignored for now
+            self.scores_a = torch.tensor(f_a['scores'])
             self.question_ids_a = torch.tensor(f_a['question_ids'])
             self.results_a = torch.tensor(f_a['results']) # result id
         
@@ -302,20 +298,28 @@ class SGQADataset(SceneGraphDataset):
             if self.image_ids_q[q_id] == index:
                 # CREATE A COUNTER HERE FOR TESTING
 
-                #Only results handled for now
                 q = self.questions_q[q_id] # get QUESTION encoding (as int)
                 a_raw = self.results_a[a_id]
                 a = torch.zeros(q.size(), dtype=torch.int)
                 a[int(a_raw.item())] = 1 # make ANSWER one-hot
 
-                #create the [2, encoding_length] Tensor
-                qa = torch.stack((q, a), dim=0)
+                if self.handle_scores:
+                    # handle scores
+                    a_sc_raw = self.scores_a[a_id][0]
+                    a_sc = torch.full(q.size(), float('-inf'))
+                    a_sc[:len(a_sc_raw)] = a_sc_raw # pad ANSWER scores with minus infinities
+
+                    #create the [3, encoding_length] Tensor
+                    qa = torch.stack((q, a, a_sc), dim=0)
+                else:                    
+                    #create the [2, encoding_length] Tensor
+                    qa = torch.stack((q, a), dim=0)
                 
                 # append to a tensor that will eventually be of length num_qs_per_image
                 questions_for_ind_list.append(qa)
         
         y = torch.stack(questions_for_ind_list).unsqueeze(0)
-        # Should be [1, num_qs_per_image, 2, question_length]
+        # Should be [1, num_qs_per_image, 2/3, question_length]
 
         return y
 
