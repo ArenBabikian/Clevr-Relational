@@ -28,15 +28,22 @@ models = {
     # 'cnn_lstm_sa_mlp': 'cnn_lstm_sa_mlp.pt'
 }
 
+# Metrics guide
+# note that src must require_grad, and must have a grad_fn
+# MSELoss (Mean Square Error) - good if both src and target are float vectors
+# BCELoss (Binary Cros Entropy) - target are probabilities (between 0 and 1)
+# BCEWithLogitsLoss - tarets are turned into probabilities
+# CE (Cross Entropy) - not sure when
+
 def measureCrossEntropy(t_src, t_tgt):
-    s_src = torch.nn.Softmax(dim=0)(t_src)
+    s_src = t_src
     s_tgt = torch.nn.Softmax(dim=0)(t_tgt)
+    # s_tgt = t_tgt
     ce = torch.nn.CrossEntropyLoss()(s_src, s_tgt)
     return ce
 
 class SceneConstructionModule(pl.LightningModule):
     def __init__(self, args):
-
         super().__init__()
         self.save_hyperparameters(args.__dict__)
 
@@ -65,8 +72,8 @@ class SceneConstructionModule(pl.LightningModule):
                 model.type(dtype)
                 self.model = model
 
-            self.criterion = measureCrossEntropy
-            self.accuracy = Accuracy() # TODO we probably want to change this to a more relevant metric for evaluation
+            self.criterion = torch.nn.BCEWithLogitsLoss()
+            self.accuracy = None # manually computed during metrics measurements
                                           
         encoder = ENCODER_MAP[self.hparams.encoder](self.hparams)
         self.net = SceneConstructionModel(encoder, self.hparams.dropout_p, self.hparams.num_rels,
@@ -163,21 +170,16 @@ class SceneConstructionModule(pl.LightningModule):
                     else:
                         scores = self.model(q_var, cur_feats)
 
-                    # Learned Amswer
+                    # Loss
+                    cur_loss = self.criterion(scores[0], answer_gt_oh)
+                    tot_loss[im_i][q_id] = cur_loss
+                    
+                    # Learned answer
+                    # NOTE not being used for loss calculation
                     _, answer_id = scores.data.cpu().max(dim=1)
                     answer_le_oh = torch.zeros(ans_len, dtype=torch.float).cuda()
                     answer_le_oh[int(answer_id.item())] = 1
-                    answer_le_oh.requires_grad = True
-                    # print('CHANGED')
-
-                    # TODO TRY WITH SCORES
-                    # answer_le_oh = scores
-
-                    # Loss
-                    # (inputs must be float tensors)
-                    cur_loss = self.criterion(answer_le_oh, answer_gt_oh)
-                    # self.criterion(scores[0], answer_gt_oh)
-                    tot_loss[im_i][q_id] = cur_loss
+                    # answer_le_oh.requires_grad = True
 
                     # Accuracy
                     isCorrect = 1 if torch.all(answer_gt_oh == answer_le_oh).item() else 0
@@ -227,4 +229,5 @@ class SceneConstructionModel(nn.Module):
         self.decoder = nn.Sequential(*output_layers)
 
     def forward(self, x, edge_index, edge_features):
+        # print(self.encoder.encoder[4].weight)
         return self.encoder(x, edge_index, edge_features)
