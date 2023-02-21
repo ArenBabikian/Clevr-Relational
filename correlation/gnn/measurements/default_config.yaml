@@ -8,7 +8,7 @@ batch_size: 16
 num_workers: 4
 seed: 980413
 edge_transformer: "types"
-decoder: "random" #" "random" # "results/gnn/clevr/decoder.statedict"
+decoder: null #" "random" # "results/gnn/clevr/decoder.statedict"
 
 # relevant stuff
 input_channels: 15

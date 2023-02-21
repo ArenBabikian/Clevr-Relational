@@ -257,6 +257,7 @@ class SGQADataset(SceneGraphDataset):
         with open(args.vocab_path, 'r') as f:
             vocab = json.load(f)
             self.answer_length = len(vocab['answer_token_to_idx'].keys())
+            args.answer_length = self.answer_length
 
         # (4) Determine how long the encoding needs to be
         # NOTE Assuming that answer is shorter than question

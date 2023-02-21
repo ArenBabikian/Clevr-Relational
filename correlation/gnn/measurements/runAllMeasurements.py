@@ -45,6 +45,7 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
         dataMap['decoder'] = '700k_strong'
 
         dataMap['dataset_save_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/saved"
+        dataMap['clevr_iep_path'] = f'{git_path}/clevr-iep/'
 
         dataMap['global_max_id'] = 3000
 
@@ -79,11 +80,10 @@ if __name__ == '__main__':
     # print(torch.load("_datasets/IEPVQA/processed/data-features.pt")[0])
     # exit()
 
-    runTraining("gat", "IEPVQA-Q", "features", 0, 3000)
+    runTraining("gatiep", "IEPVQA-Q", "features", 0, 150)
     exit()
 
     runTraining("gatiep", "IEPVQA", "features", 0, 3000)
-    exit()
     runTraining("gatiep", "IEPVQA", "random", 0, 3000)
     runTraining("gatiep", "IEPVQA", "randomwithreplacement", 0, 3000)
     

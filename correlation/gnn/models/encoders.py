@@ -16,21 +16,6 @@ class GATEncoder(nn.Module):
     def forward(self, x, edge_index, edge_features):
         return self.encoder(x, edge_index, edge_features)
 
-class GATIEPEncoder(nn.Module):
-    # Learns IEP features (size 200704)
-    def __init__(self, args):
-        super(GATIEPEncoder, self).__init__()
-        self.encoder = Sequential('x, edge_index, edge_features', [
-            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
-            (nn.ELU(), 'x -> x'),
-            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
-            (nn.ELU(), 'x -> x'),
-            Linear(1024, 200704)])
-
-    def forward(self, x, edge_index, edge_features):
-        return self.encoder(x, edge_index, edge_features)
-
-
 class RGCNEncoder(nn.Module):
     def __init__(self, args, num_features=512):
         super(RGCNEncoder, self).__init__()
@@ -72,3 +57,22 @@ class RGCN2Encoder(nn.Module):
         edge_types = torch.nonzero(edge_features)[:, 1]
 
         return self.encoder(x, edge_index, edge_types)
+
+
+# IEP FEATURE LEARNING
+class GATIEPEncoder(nn.Module):
+    # Learns IEP features (size 1024*14*14=200704)
+    def __init__(self, args):
+        super(GATIEPEncoder, self).__init__()
+        self.encoder = Sequential('x, edge_index, edge_features', [
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            Linear(1024, 200704)])
+
+    def forward(self, x, edge_index, edge_features):
+        return self.encoder(x, edge_index, edge_features)
+
+
+# QUESTION ANSWER LEARNING
