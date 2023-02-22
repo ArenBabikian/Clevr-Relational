@@ -74,5 +74,19 @@ class GATIEPEncoder(nn.Module):
     def forward(self, x, edge_index, edge_features):
         return self.encoder(x, edge_index, edge_features)
 
+# POST_STEM IEP FEATURE LEARNING
+class GATSTEMEncoder(nn.Module):
+    # Learns post-stem IEP features (size 128*14*14=25088)
+    def __init__(self, args):
+        super(GATSTEMEncoder, self).__init__()
+        self.encoder = Sequential('x, edge_index, edge_features', [
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            (GATConv(-1, 256, 4, edge_dim=args.edge_dim), 'x, edge_index, edge_features -> x'),
+            (nn.ELU(), 'x -> x'),
+            Linear(1024, 25088)])
+
+    def forward(self, x, edge_index, edge_features):
+        return self.encoder(x, edge_index, edge_features)
 
 # QUESTION ANSWER LEARNING

@@ -8,14 +8,15 @@ from torch_geometric.data import Data, Batch
 from torchmetrics import Accuracy
 from torch.autograd import Variable
 from tqdm import tqdm
-from correlation.gnn.models.encoders import GATEncoder, GATIEPEncoder, RGCNEncoder, RGCN2Encoder
+from correlation.gnn.models.encoders import GATEncoder, GATIEPEncoder, GATSTEMEncoder, RGCNEncoder, RGCN2Encoder
 import sys
 
 ENCODER_MAP = {
     'gat': GATEncoder,
     'rgcn': RGCNEncoder,
     'rgcn2': RGCN2Encoder,
-    'gatiep': GATIEPEncoder
+    'gatiep': GATIEPEncoder,
+    'gatstem': GATSTEMEncoder
 }
 
 models = {
@@ -51,6 +52,9 @@ class SceneConstructionModule(pl.LightningModule):
             # TODO for the FUTURE, this also applies to 'IEPVQA-DIS'
             self.criterion = torch.nn.MSELoss()
             self.accuracy = None
+        elif args.source_type == 'IEPVQA-STEM':
+            self.criterion = torch.nn.MSELoss()
+            self.accuracy = None
         elif args.source_type == 'CLEVR-GNN':
             self.criterion = torch.nn.MSELoss()
             self.accuracy = None
@@ -84,6 +88,34 @@ class SceneConstructionModule(pl.LightningModule):
 
     def forward(self, batch):
         return self.net(batch.x, batch.edge_index, batch.edge_attr)
+    
+    def iepvqa_metrics(self, num_obj_seq, batch_graph, reconstruction):
+        # This works for IEPVQA and for IEPVQA-STEM
+        # TODO for the FUTURE, this also applies to 'IEPVQA-DIS'
+
+        ### RECONSTRUCTION
+        # IEPVQA     : [batch_size * num_nodes, 200704] -> [batch_size, 200704] (floats)
+        # IEPVQA-STEM: [batch_size * num_nodes, 25088] -> [batch_size, 25088] (floats)
+        assert torch.sum(num_obj_seq) == len(batch_graph.x)
+
+        loss_feat = []
+        start_id = 0
+        for n in num_obj_seq:
+            # Average out the reconstruction for each image in batch
+            loss_feat.append(torch.mean(reconstruction[start_id:start_id+n.data], 0))
+            start_id = start_id+n.data
+        # stack all average reconstructions of a same batch
+        loss_feat = torch.stack(loss_feat)
+
+        ### BATCH
+        # IEPVQA     : [batch_size, 1024, 14, 14] -> [batch_size, 200704] (floats)
+        # IEPVQA-STEM: [batch_size, 128, 14, 14] -> [batch_size, 25088] (floats)
+        loss_gt = torch.flatten(batch_graph.y, start_dim=1)
+
+        ### LOSS
+        loss = self.criterion(loss_feat, loss_gt)
+        acc = 0.5
+        return loss, acc
 
     def get_metrics(self, batch):
         t = torch.cuda if torch.cuda.is_available() else torch
@@ -92,28 +124,9 @@ class SceneConstructionModule(pl.LightningModule):
         reconstruction = self.forward(batch_graph)
 
         if self.hparams.source_type == 'IEPVQA':
-            # TODO for the FUTURE, this also applies to 'IEPVQA-DIS'
-
-            # RECONSTRUCTION
-            # [batch_size * num_nodes, 200704] -> [batch_size, 200704] (floats)
-            assert torch.sum(num_obj_seq) == len(batch_graph.x)
-
-            loss_feat = []
-            start_id = 0
-            for n in num_obj_seq:
-                # Average out the reconstruction for each image in batch
-                loss_feat.append(torch.mean(reconstruction[start_id:start_id+n.data], 0))
-                start_id = start_id+n.data
-            # stack all average reconstructions of a same batch
-            loss_feat = torch.stack(loss_feat)
-
-            # BATCH
-            # [batch_size, 1024, 14, 14] -> [batch_size, 200704] (floats)
-            loss_gt = torch.flatten(batch_graph.y, start_dim=1)
-
-            # LOSS
-            loss = self.criterion(loss_feat, loss_gt)
-            acc = 0.5
+            loss, acc = self.iepvqa_metrics(num_obj_seq, batch_graph, reconstruction)
+        elif self.hparams.source_type == 'IEPVQA-STEM':
+            loss, acc = self.iepvqa_metrics(num_obj_seq, batch_graph, reconstruction)
         elif self.hparams.source_type == 'CLEVR-GNN':
             loss = self.criterion(reconstruction, batch_graph.y)
             acc = 0.5

@@ -25,6 +25,12 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
         dataMap['obj_ann_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
         dataMap['target_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/val_features_0_3000.h5"
         dataMap['global_max_id'] = 3000
+    elif dataset == 'IEPVQA-STEM':
+        # scenes: 0..15000
+        # features: 0:3000
+        dataMap['obj_ann_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
+        dataMap['target_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/stem/val_features_0_3000.h5"
+        dataMap['global_max_id'] = 3000
     elif dataset == "CLEVR-GNN":
         # 0..4000
         # NOTE: only 'features' works. Cannot do random selection since y size changes between images
@@ -78,13 +84,17 @@ if __name__ == '__main__':
     # print(torch.load("_datasets/IEPVQA/processed/data-features.pt")[0])
     # exit()
 
-    runTraining("gatiep", "IEPVQA-Q", "features", 0, 150)
-    exit()
+    # runTraining("gatiep", "IEPVQA-Q", "features", 0, 150)
+    # exit()
 
+    runTraining("gatstem", "IEPVQA-STEM", "features", 0, 3000)
+    runTraining("gatstem", "IEPVQA-STEM", "random", 0, 3000)
+    runTraining("gatstem", "IEPVQA-STEM", "randomwithreplacement", 0, 3000)
+    exit()
     runTraining("gatiep", "IEPVQA", "features", 0, 3000)
     runTraining("gatiep", "IEPVQA", "random", 0, 3000)
     runTraining("gatiep", "IEPVQA", "randomwithreplacement", 0, 3000)
-    
+    exit()
     runTraining("gat", "CLEVR-GNN", "features", 0, 3000)
     runTraining("rgcn", "CLEVR-GNN", "features", 0, 3000)
     runTraining("rgcn2", "CLEVR-GNN", "features", 0, 3000)

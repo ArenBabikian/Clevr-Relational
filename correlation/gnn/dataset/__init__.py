@@ -30,8 +30,9 @@ def createDataLoader(self, dataset):
         )
 
 DATASET_MAP = {
-    'IEPVQA': SGDataset,
     'CLEVR-GNN': SGDataset,
+    'IEPVQA': SGDataset,
+    'IEPVQA-STEM': SGDataset,
     'IEPVQA-Q': SGQADataset,
 
     'IEPVQA-DIS': SGDataset
@@ -39,6 +40,7 @@ DATASET_MAP = {
 dataset_2_encoder = {
     'CLEVR-GNN':{'gat', 'rgcn', 'rgcn2'},
     'IEPVQA':{'gatiep'},
+    'IEPVQA-STEM':{'gatstem'},
     'IEPVQA-Q':{'gatiep'}
 }
 
