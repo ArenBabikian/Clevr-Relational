@@ -34,6 +34,7 @@ DATASET_MAP = {
     'IEPVQA': SGDataset,
     'IEPVQA-STEM': SGDataset,
     'IEPVQA-Q': SGQADataset,
+    'IEPVQA-Q-STEM': SGQADataset,
 
     'IEPVQA-DIS': SGDataset
 }
@@ -41,7 +42,8 @@ dataset_2_encoder = {
     'CLEVR-GNN':{'gat', 'rgcn', 'rgcn2'},
     'IEPVQA':{'gatiep'},
     'IEPVQA-STEM':{'gatstem'},
-    'IEPVQA-Q':{'gatiep'}
+    'IEPVQA-Q':{'gatiep'},
+    'IEPVQA-Q-STEM':{'gatstem'}
 }
 
 class SceneGraphDatasetModule(pl.LightningDataModule):

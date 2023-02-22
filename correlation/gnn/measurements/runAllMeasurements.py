@@ -5,7 +5,7 @@ from correlation.gnn.train import main
 config_fp = "correlation/gnn/measurements/default_config.yaml"
 git_path = '/home/arenbabikian/git'
 
-def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None):
+def runTraining(encoder, dataset, target_type, min_id, max_id, handle_scores=False):
     # For the 4000 images
     with open(config_fp) as f:
         dataMap = yaml.safe_load(f)
@@ -15,7 +15,6 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
     dataMap['target_type'] = target_type # (target_type)
     dataMap['min_id'] = min_id
     dataMap['max_id'] = max_id
-    dataMap['iep_answer_details'] = iep_answers
 
     # DATASET specification
     
@@ -39,7 +38,7 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
 
 
     # TODO wip
-    elif dataset == 'IEPVQA-Q':
+    elif dataset == 'IEPVQA-Q' or dataset == 'IEPVQA-Q-STEM':
         # scenes: 0..15000
         # features: 0:3000
         dataMap['obj_ann_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/CLEVR_val_scenes.json"
@@ -49,11 +48,11 @@ def runTraining(encoder, dataset, target_type, min_id, max_id, iep_answers=None)
         dataMap['vocab_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/val_vocab_0_3000.json"
         dataMap['decoder'] = '700k_strong'
 
-        dataMap['dataset_save_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/saved_old"
-        dataMap['handle_scores'] = False
+        dataMap['dataset_save_path'] = f"{git_path}/Clevr-Relational/_data/iepvqa/saved"
         dataMap['clevr_iep_path'] = f'{git_path}/clevr-iep/'
 
         dataMap['global_max_id'] = 3000
+        dataMap['handle_scores'] = handle_scores
 
 
 
@@ -84,8 +83,15 @@ if __name__ == '__main__':
     # print(torch.load("_datasets/IEPVQA/processed/data-features.pt")[0])
     # exit()
 
-    # runTraining("gatiep", "IEPVQA-Q", "features", 0, 150)
-    # exit()
+    runTraining("gatiep", "IEPVQA-Q", "features", 0, 3000)
+    runTraining("gatstem", "IEPVQA-Q-STEM", "features", 0, 3000)
+    # runTraining("gatstem", "IEPVQA-Q-STEM", "features", 0, 3000, True)
+    exit()
+
+    runTraining("gatstem", "IEPVQA-Q-STEM", "features", 0, 150)
+    exit()
+    runTraining("gatiep", "IEPVQA-Q", "features", 0, 150)
+    exit()
 
     runTraining("gatstem", "IEPVQA-STEM", "features", 0, 3000)
     runTraining("gatstem", "IEPVQA-STEM", "random", 0, 3000)
@@ -99,28 +105,6 @@ if __name__ == '__main__':
     runTraining("rgcn", "CLEVR-GNN", "features", 0, 3000)
     runTraining("rgcn2", "CLEVR-GNN", "features", 0, 3000)
 
-    # for e in ['gatiep']:
-    #     for d in ['IEPVQA']:
-    #         for t in ['features', 'random', 'randomwithreplacement']:
-    #             runTraining(e, d, t, 0, 3000)
-    # for e in ['gatiep']:
-    #     for d in ['IEPVQA']:
-    #         for t in ['random', 'randomwithreplacement']:
-    #             for _ in range(3):
-    #                 runTraining(e, d, t, 0, 3000)
-    
-
-    # for e in ['gat', 'rgcn', 'rgcn2']:
-    #     for d in ['CLEVR-GNN']:
-    #         # for t in ['features', 'random', 'randomwithreplacement']:
-    #         for t in ['features']:
-    #             runTraining(e, d, t, 0, 4000)
-
-    # runTraining("rgcn2", "CLEVR-GNN", "features", 0, 4000)
-    # runTraining("rgcn", "IEPVQA", "features", 0, 10000)
-    # runTraining("gatiep", "IEPVQA", "randomwithreplacement", 0, 1000)
-    # runTraining("gatiep", "IEPVQA", "random", 0, 1000)
-    # runTraining("gatiep", "IEPVQA-QA", "scores-features", 0, 300, ["9k", 0, 300, 1])
     # runTraining("gatiep", "IEPVQA-DIS", "features", 0, 1000)
     # runTraining("gatiep", "IEPVQA-DIS", "randomwithreplacement1", 0, 1000)    
     # runTraining("gatiep", "IEPVQA-DIS", "randomwithreplacement1", 0, 3000)
